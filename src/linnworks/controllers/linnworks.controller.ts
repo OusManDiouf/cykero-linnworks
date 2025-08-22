@@ -16,9 +16,25 @@ export class LinnworksController {
   @Get('status')
   async getStatus() {
     const connectionTest = await this.linnworksApi.testConnection();
-    // const getOpenOrders = await this.linnworksApi.getOpenOrders();
+
+    const orderId = '6e9a95a9-9fbd-4d68-8222-40575f6a66cf';
+
+    // await this.linnworksApi.setOrderShippingInfo({
+    //   orderId,
+    //   info: {
+    //     TrackingNumber: '1234567890',
+    //   },
+    // });
+
+    await this.linnworksApi.processOrder({
+      orderId,
+      locationId: '00000000-0000-0000-0000-000000000000',
+      scanPerformed: true,
+    });
+
+    // NOTE: ONCE THE ORDER IS PROCESSED, WE CANT FIND IT ANYMORE USING REGULAR OPEN ORDERS API CALLS
     const getOpenOrdersDetails = await this.linnworksApi.getOpenOrdersDetails({
-      OrderIds: ['d566f927-657e-448f-b35d-08187cabfff3'],
+      OrderIds: [orderId],
     });
 
     return {

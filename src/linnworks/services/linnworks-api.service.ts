@@ -51,8 +51,8 @@ export interface SetOrderShippingInfoRequest {
 // Request/response types for Orders/ProcessOrder
 export interface ProcessOrderRequest {
   orderId: string; // uuid
-  scanPerformed?: boolean; // optional, defaults false by API if omitted
-  locationId?: string; // uuid (user location)
+  scanPerformed: boolean; // optional, defaults false by API if omitted
+  locationId: string; // uuid (user location)
   context?: {
     Module?: string;
   };
@@ -99,9 +99,9 @@ export class LinnworksApiService {
         HttpStatus.BAD_REQUEST,
       );
     }
-    if (req.locationId && !uuidRegex.test(req.locationId)) {
+    if (!req.locationId) {
       throw new HttpException(
-        'processOrder locationId must be a valid UUID when provided.',
+        'processOrder locationId must be provided.',
         HttpStatus.BAD_REQUEST,
       );
     }
