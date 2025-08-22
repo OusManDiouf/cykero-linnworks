@@ -44,24 +44,30 @@ export class TokenManagerService {
   private readonly TOKEN_REFRESH_BUFFER = 300; // Refresh 5 minutes before expiry
 
   private refreshPromise: Promise<string> | null = null;
+  private readonly redisDb1: Redis;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
     @InjectRedis() private readonly redis: Redis,
-  ) {}
+  ) {
+    // Use Redis DB 1 for token management to avoid clashing with BullMQ in DB 0
+    this.redisDb1 = this.redis.duplicate({ db: 1 });
+  }
 
   async getValidToken(): Promise<string> {
     try {
       // Check if we have a valid token in Redis
-      const cachedToken = await this.redis.get(this.REDIS_TOKEN_KEY);
+      const cachedToken = await this.redisDb1.get(this.REDIS_TOKEN_KEY);
 
       if (cachedToken) {
-        const ttl = await this.redis.ttl(this.REDIS_TOKEN_KEY);
+        const ttl = await this.redisDb1.ttl(this.REDIS_TOKEN_KEY);
 
         // If token expires in less than 5 minutes, refresh it
         if (ttl > this.TOKEN_REFRESH_BUFFER) {
-          this.logger.debug(`♻️ Using cached token, expires in ${ttl} seconds`);
+          this.logger.debug(
+            `♻️  Using cached token, expires in ${ttl} seconds`,
+          );
           return cachedToken;
         }
 
@@ -117,12 +123,16 @@ export class TokenManagerService {
 
       const response = await firstValueFrom(
         this.httpService
-          .post(`${authApiUrl}/Auth/AuthorizeByApplication`, payload, {
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
+          .post<LinnworksAuthResponse>(
+            `${authApiUrl}/Auth/AuthorizeByApplication`,
+            payload,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+              },
             },
-          })
+          )
           .pipe(
             retry(2),
             catchError((error) => {
@@ -135,18 +145,27 @@ export class TokenManagerService {
           ),
       );
 
-      const authData: LinnworksAuthResponse = response.data;
+      const authData = response.data;
 
-      if (!authData.Token) {
-        throw new Error('⛑️ No token received from Linnworks API');
+      if (!authData?.Token) {
+        const serverMsg =
+          typeof response.data === 'object' && response.data
+            ? JSON.stringify(response.data)
+            : 'No data';
+        throw new Error(
+          `⛑️ No token received from Linnworks API. Response: ${serverMsg}`,
+        );
       }
 
       // Store token in Redis with TTL minus buffer time
-      const tokenTTL = Math.max(authData.TTL - this.TOKEN_REFRESH_BUFFER, 60);
-      await this.redis.setex(this.REDIS_TOKEN_KEY, tokenTTL, authData.Token);
+      const tokenTTL = Math.max(
+        (authData.TTL ?? 0) - this.TOKEN_REFRESH_BUFFER,
+        60,
+      );
+      await this.redisDb1.setex(this.REDIS_TOKEN_KEY, tokenTTL, authData.Token);
 
-      // Store full auth data for potential future use
-      await this.redis.setex(
+      // Store full auth data for potential future use (contains Server to call later)
+      await this.redisDb1.setex(
         this.REDIS_AUTH_DATA_KEY,
         tokenTTL,
         JSON.stringify(authData),
@@ -165,8 +184,10 @@ export class TokenManagerService {
 
   async getAuthData(): Promise<LinnworksAuthResponse | null> {
     try {
-      const cachedData = await this.redis.get(this.REDIS_AUTH_DATA_KEY);
-      return cachedData ? JSON.parse(cachedData) : null;
+      const cachedData = await this.redisDb1.get(this.REDIS_AUTH_DATA_KEY);
+      return cachedData
+        ? (JSON.parse(cachedData) as LinnworksAuthResponse)
+        : null;
     } catch (error) {
       this.logger.error('❌ Failed to get auth data:', error);
       return null;
@@ -175,8 +196,8 @@ export class TokenManagerService {
 
   async clearTokenCache(): Promise<void> {
     await Promise.all([
-      this.redis.del(this.REDIS_TOKEN_KEY),
-      this.redis.del(this.REDIS_AUTH_DATA_KEY),
+      this.redisDb1.del(this.REDIS_TOKEN_KEY),
+      this.redisDb1.del(this.REDIS_AUTH_DATA_KEY),
     ]);
     this.logger.log('🧹  Token cache cleared');
   }
@@ -186,8 +207,10 @@ export class TokenManagerService {
     expiresIn: number;
     authData: LinnworksAuthResponse | null;
   }> {
-    const hasToken = await this.redis.exists(this.REDIS_TOKEN_KEY);
-    const expiresIn = hasToken ? await this.redis.ttl(this.REDIS_TOKEN_KEY) : 0;
+    const hasToken = await this.redisDb1.exists(this.REDIS_TOKEN_KEY);
+    const expiresIn = hasToken
+      ? await this.redisDb1.ttl(this.REDIS_TOKEN_KEY)
+      : 0;
     const authData = await this.getAuthData();
 
     return {

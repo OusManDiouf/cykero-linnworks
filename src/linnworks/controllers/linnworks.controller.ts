@@ -17,8 +17,12 @@ export class LinnworksController {
   async getStatus() {
     const connectionTest = await this.linnworksApi.testConnection();
     // const getOpenOrders = await this.linnworksApi.getOpenOrders();
+    const getOpenOrdersDetails = await this.linnworksApi.getOpenOrdersDetails({
+      OrderIds: ['d566f927-657e-448f-b35d-08187cabfff3'],
+    });
 
     return {
+      getOpenOrdersDetails,
       connected: connectionTest,
       timestamp: new Date().toISOString(),
     };
