@@ -1,0 +1,30 @@
+version: '3'
+
+env:
+  COMPOSE_PROJECT_NAME: cykero-linnworks
+
+tasks:
+  docker-build:
+    desc: Build docker images
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} build
+
+  docker-up:
+    desc: Run docker images
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} up -d
+
+  docker-down:
+    desc: Stop docker images
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} down
+
+  docker-logs:
+    desc: Show docker logs
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} logs -f
+
+  docker-clean:
+    desc: Clean docker images
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} down -v --remove-orphans
