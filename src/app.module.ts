@@ -8,6 +8,8 @@ import linnworksConfig from './config/linnworks.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LinnworksModule } from './linnworks/linnworks.module';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bullmq';
+import { AppRedisModule } from './redis/redis.module';
 
 const logger = new Logger('AppModule');
 @Module({
@@ -17,6 +19,7 @@ const logger = new Logger('AppModule');
       load: [databaseConfig, linnworksConfig],
       envFilePath: ['.env.local', '.env'],
     }),
+    AppRedisModule,
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('database.mongodb.uri'),
@@ -31,6 +34,17 @@ const logger = new Logger('AppModule');
       }),
       inject: [ConfigService],
     }),
+    BullModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('database.redis.host'),
+          port: configService.get<number>('database.redis.port'),
+          password: configService.get<string>('database.redis.password'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    ScheduleModule.forRoot(),
     ZohoBooksModule.forRoot({
       baseUrl: 'https://books.zoho.com/api/v3',
       authToken: 'your-token',

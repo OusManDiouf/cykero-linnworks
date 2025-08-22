@@ -7,8 +7,12 @@ import { LinnworksApiService } from './services/linnworks-api.service';
 import { OrderRepositoryService } from './services/order-repository.service';
 import { OrderQueueService } from './services/order-queue.service';
 import { PollingSchedulerService } from './services/polling-scheduler.service';
-import { OrderProcessor, PollingProcessor } from './processors/order.processor';
+import { OrderProcessor } from './processors/order.processor';
 import { LinnworksController } from './controllers/linnworks.controller';
+import { ScheduleModule } from '@nestjs/schedule';
+import { BullModule } from '@nestjs/bullmq';
+import { PollingProcessor } from './processors/polling.processor';
+import { TokenManagerService } from './services/token-manager.service';
 
 @Module({
   imports: [
@@ -17,15 +21,16 @@ import { LinnworksController } from './controllers/linnworks.controller';
       timeout: 30000,
       maxRedirects: 3,
     }),
+    ScheduleModule.forRoot(),
     MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
-    // ScheduleModule.forRoot(),
-    // BullModule.registerQueue(
-    //   { name: 'order-processing' },
-    //   { name: 'order-polling' },
-    // ),
+    BullModule.registerQueue(
+      { name: 'order-processing' },
+      { name: 'order-polling' },
+    ),
   ],
   controllers: [LinnworksController],
   providers: [
+    TokenManagerService,
     LinnworksApiService,
     OrderRepositoryService,
     OrderQueueService,
@@ -33,6 +38,11 @@ import { LinnworksController } from './controllers/linnworks.controller';
     OrderProcessor,
     PollingProcessor,
   ],
-  exports: [LinnworksApiService, OrderRepositoryService, OrderQueueService],
+  exports: [
+    TokenManagerService,
+    LinnworksApiService,
+    OrderRepositoryService,
+    OrderQueueService,
+  ],
 })
 export class LinnworksModule {}

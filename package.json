@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@cykerosoftware/zoho-books": "^0.0.1",
+    "@nestjs-modules/ioredis": "^2.0.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.3",
     "@nestjs/common": "^11.0.1",
@@ -49,7 +50,6 @@
     "@swc/core": "^1.13.3",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/mongoose": "^5.11.97",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^3.2.4",

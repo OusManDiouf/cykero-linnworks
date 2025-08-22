@@ -2,6 +2,7 @@ name: cykero-linnworks
 services:
   mongo:
     image: mongo:7.0
+    restart: unless-stopped
     ports:
       - "27077:27017"
     # For dev, running without auth is simplest. If you want auth, uncomment env vars and init.
@@ -20,6 +21,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "63790:6379"
     command: ["redis-server", "--appendonly", "yes"]
