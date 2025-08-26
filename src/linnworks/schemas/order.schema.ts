@@ -1,310 +1,186 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { SchemaTypes } from 'mongoose';
+import {
+  AddressLW as AddressShape,
+  CustomerInfo as CustomerInfoShape,
+  GeneralInfo as GeneralInfoShape,
+  Order as OrderShape,
+  ShippingInfo as ShippingInfoShape,
+  TotalsInfo as TotalsInfoShape,
+} from '../types/order.types';
 
-@Schema({ _id: false })
-export class OrderIdentifier {
-  @Prop({ required: true })
-  IdentifierId: number;
-
-  @Prop({ required: true })
-  IsCustom: boolean;
-
-  @Prop()
-  ImageId: string;
-
-  @Prop()
-  ImageUrl: string;
-
-  @Prop()
-  Tag: string;
-
-  @Prop()
-  Name: string;
+// Address schema (strict false to allow extra fields without constant churn)
+@Schema({ _id: false, strict: true })
+export class Address implements AddressShape {
+  @Prop({ default: '' }) EmailAddress: string;
+  @Prop({ default: '' }) Address1: string;
+  @Prop({ default: '' }) Address2: string;
+  @Prop({ default: '' }) Address3: string;
+  @Prop({ default: '' }) Town: string;
+  @Prop({ default: '' }) Region: string;
+  @Prop({ default: '' }) PostCode: string;
+  @Prop({ default: '' }) Country: string;
+  @Prop({ default: '' }) Continent: string;
+  @Prop({ default: '' }) FullName: string;
+  @Prop({ default: '' }) Company: string;
+  @Prop({ default: '' }) PhoneNumber: string;
+  @Prop({ default: '' }) CountryId: string;
 }
 
+// GeneralInfo matches payload
 @Schema({ _id: false })
-export class ScheduledDelivery {
-  @Prop()
-  From: Date;
-
-  @Prop()
-  To: Date;
+export class GeneralInfo implements GeneralInfoShape {
+  @Prop({ required: true }) Status: number;
+  @Prop({ default: false }) LabelPrinted: boolean;
+  @Prop({ default: '' }) LabelError: string;
+  @Prop({ default: false }) InvoicePrinted: boolean;
+  @Prop({ default: '' }) InvoicePrintError: string;
+  @Prop({ default: false }) PickListPrinted: boolean;
+  @Prop({ default: '' }) PickListPrintError: string;
+  @Prop({ default: false }) IsRuleRun: boolean;
+  @Prop({ default: 0 }) Notes: number;
+  @Prop({ default: false }) PartShipped: boolean;
+  @Prop({ default: 0 }) Marker: number;
+  @Prop({ default: false }) IsParked: boolean;
+  @Prop({ default: '' }) ReferenceNum: string;
+  @Prop({ default: '' }) SecondaryReference: string;
+  @Prop({ default: '' }) ExternalReferenceNum: string;
+  @Prop() ReceivedDate: Date;
+  @Prop({ default: '' }) Source: string;
+  @Prop({ default: '' }) SubSource: string;
+  @Prop({ default: false }) HoldOrCancel: boolean;
+  @Prop() DespatchByDate: Date;
+  @Prop({ default: false }) HasScheduledDelivery: boolean;
+  @Prop({ default: '' }) Location: string;
+  @Prop({ default: 0 }) NumItems: number;
 }
 
+// ShippingInfo matches payload
 @Schema({ _id: false })
-export class GeneralInfo {
-  @Prop({ required: true })
-  Status: number;
-
-  @Prop({ default: false })
-  LabelPrinted: boolean;
-
-  @Prop()
-  LabelError: string;
-
-  @Prop({ default: false })
-  InvoicePrinted: boolean;
-
-  @Prop({ default: false })
-  PickListPrinted: boolean;
-
-  @Prop({ default: false })
-  IsRuleRun: boolean;
-
-  @Prop({ default: 0 })
-  Notes: number;
-
-  @Prop({ default: false })
-  PartShipped: boolean;
-
-  @Prop({ default: 0 })
-  Marker: number;
-
-  @Prop({ default: false })
-  IsParked: boolean;
-
-  @Prop({ type: [OrderIdentifier] })
-  Identifiers: OrderIdentifier[];
-
-  @Prop()
-  ReferenceNum: string;
-
-  @Prop()
-  SecondaryReference: string;
-
-  @Prop()
-  ExternalReferenceNum: string;
-
-  @Prop()
-  ReceivedDate: Date;
-
-  @Prop()
-  Source: string;
-
-  @Prop()
-  SubSource: string;
-
-  @Prop()
-  SiteCode: string;
-
-  @Prop({ default: false })
-  HoldOrCancel: boolean;
-
-  @Prop()
-  DespatchByDate: Date;
-
-  @Prop({ type: ScheduledDelivery })
-  ScheduledDelivery: ScheduledDelivery;
-
-  @Prop({ default: false })
-  HasScheduledDelivery: boolean;
-
-  @Prop()
-  Location: string;
-
-  @Prop({ default: 0 })
-  NumItems: number;
+export class ShippingInfo implements ShippingInfoShape {
+  @Prop({ default: '' }) Vendor: string;
+  @Prop({ default: '' }) PostalServiceId: string;
+  @Prop({ default: '' }) PostalServiceName: string;
+  @Prop({ default: 0 }) TotalWeight: number;
+  @Prop({ default: 0 }) ItemWeight: number;
+  @Prop({ default: '' }) PackageCategoryId: string;
+  @Prop({ default: '' }) PackageCategory: string;
+  @Prop({ default: '' }) PackageTypeId: string;
+  @Prop({ default: '' }) PackageType: string;
+  @Prop({ default: 0 }) PostageCost: number;
+  @Prop({ default: 0 }) PostageCostExTax: number;
+  @Prop({ default: '' }) TrackingNumber: string;
+  @Prop({ default: false }) ManualAdjust: boolean;
 }
 
+// TotalsInfo matches payload
 @Schema({ _id: false })
-export class OrderItem {
-  @Prop({ required: true })
-  ItemId: string;
-
-  @Prop()
-  StockItemId: string;
-
-  @Prop()
-  ItemNumber: string;
-
-  @Prop({ required: true })
-  SKU: string;
-
-  @Prop({ required: true })
-  ItemTitle: string;
-
-  @Prop({ required: true })
-  Quantity: number;
-
-  @Prop({ default: 0 })
-  UnitCost: number;
-
-  @Prop({ default: 0 })
-  UnitPrice: number;
-
-  // Note: define CompositeSubItems in the schema AFTER schema creation to avoid circular metadata recursion
-  CompositeSubItems: OrderItem[];
+export class TotalsInfo implements TotalsInfoShape {
+  @Prop({ default: 0 }) Subtotal: number;
+  @Prop({ default: 0 }) PostageCost: number;
+  @Prop({ default: 0 }) PostageCostExTax: number;
+  @Prop({ default: 0 }) Tax: number;
+  @Prop({ default: 0 }) TotalCharge: number;
+  @Prop({ default: '' }) PaymentMethod: string;
+  @Prop({ default: '' }) PaymentMethodId: string;
+  @Prop({ default: 0 }) ProfitMargin: number;
+  @Prop({ default: 0 }) TotalDiscount: number;
+  @Prop({ default: 'EUR' }) Currency: string;
+  @Prop({ default: 0 }) CountryTaxRate: number;
+  @Prop({ default: 1 }) ConversionRate: number;
 }
 
+// CustomerInfo matches payload
 @Schema({ _id: false })
-export class Address {
-  @Prop()
-  CustomerName: string;
+export class CustomerInfo implements CustomerInfoShape {
+  @Prop({ default: '' }) ChannelBuyerName: string;
 
-  @Prop()
-  Company: string;
+  @Prop({ type: Address, required: true })
+  Address: Address;
 
-  @Prop()
-  Address1: string;
-
-  @Prop()
-  Address2: string;
-
-  @Prop()
-  Address3: string;
-
-  @Prop()
-  Town: string;
-
-  @Prop()
-  Region: string;
-
-  @Prop()
-  PostCode: string;
-
-  @Prop()
-  Country: string;
-
-  @Prop()
-  CountryId: string;
-
-  @Prop()
-  PhoneNumber: string;
-}
-
-@Schema({ _id: false })
-export class CustomerInfo {
-  @Prop()
-  ChannelBuyerName: string;
-
-  @Prop()
-  AccountName: string;
-
-  @Prop()
-  CustomerTitle: string;
-
-  @Prop()
-  CustomerFirstName: string;
-
-  @Prop()
-  CustomerLastName: string;
-
-  @Prop()
-  CustomerEmailAddress: string;
-
-  @Prop()
-  CustomerPhoneNumber: string;
-
-  @Prop({ type: Address })
+  @Prop({ type: Address, required: true })
   BillingAddress: Address;
-
-  @Prop({ type: Address })
-  ShippingAddress: Address;
 }
 
-@Schema({ _id: false })
-export class ShippingInfo {
-  @Prop()
-  Vendor: string;
+@Schema({
+  // Important: include virtuals so OrderId is visible in JSON/objects
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+})
+export class Order implements Omit<OrderShape, 'OrderId'> {
+  // Use Linnworks OrderId as Mongo _id
+  @Prop({ type: String, required: true })
+  _id: string;
 
-  @Prop()
-  PostalServiceName: string;
-
-  @Prop()
-  PostalServiceTag: string;
-
-  @Prop({ default: 0 })
-  TotalWeight: number;
-
-  @Prop({ default: 0 })
-  ItemWeight: number;
-
-  @Prop({ default: 0 })
-  PackagingWeight: number;
-
-  @Prop()
-  PackagingGroup: string;
-
-  @Prop()
-  PackagingType: string;
-
-  @Prop({ default: 0 })
-  PostageCost: number;
-
-  @Prop({ default: 0 })
-  PostageCostExTax: number;
-
-  @Prop()
-  TrackingNumber: string;
-}
-
-@Schema({ timestamps: true })
-export class Order {
-  @Prop({ required: true })
-  orderId: string;
-
+  // Full payload fields
   @Prop({ required: true })
   NumOrderId: number;
+
+  @Prop({ default: false })
+  Processed: boolean;
+
+  @Prop({ default: '00000000-0000-0000-0000-000000000000' })
+  FulfilmentLocationId: string;
 
   @Prop({ type: GeneralInfo, required: true })
   GeneralInfo: GeneralInfo;
 
-  @Prop({ type: ShippingInfo })
+  @Prop({ type: ShippingInfo, required: true })
   ShippingInfo: ShippingInfo;
 
   @Prop({ type: CustomerInfo, required: true })
   CustomerInfo: CustomerInfo;
 
-  @Prop({ type: [OrderItem] })
-  Items: OrderItem[];
+  @Prop({ type: TotalsInfo, required: true })
+  TotalsInfo: TotalsInfo;
 
-  @Prop({ type: Map, of: String })
-  ExtendedProperties: Map<string, string>;
+  // Arrays can be flexible
+  @Prop({ type: [SchemaTypes.Mixed], default: [] })
+  ExtendedProperties: Record<string, unknown>[];
 
-  @Prop({ default: 0 })
-  TotalCharge: number;
+  @Prop({ type: [String], default: [] })
+  FolderName: string[];
 
-  @Prop({ default: 0 })
-  TotalDiscount: number;
+  @Prop({ type: [SchemaTypes.Mixed], default: [] })
+  Items: Record<string, unknown>[];
 
-  @Prop({ default: 0 })
-  ProfitMargin: number;
+  @Prop({ type: [SchemaTypes.Mixed], default: [] })
+  Notes: Record<string, unknown>[];
 
-  @Prop({ default: 0 })
-  TotalCost: number;
-
-  @Prop({ default: 'EUR' })
-  Currency: string;
-
-  @Prop({ default: 1 })
-  ConversionRate: number;
-
-  @Prop({ default: 'pending' })
-  processingStatus: string;
+  // Optional envelope metadata if you want to keep them
+  @Prop()
+  connected?: boolean;
 
   @Prop()
-  lastSyncedAt: Date;
+  timestamp?: Date;
 
-  @Prop({ default: 'poll' })
-  source: string;
-
-  @Prop({ default: 0 })
-  retryCount: number;
+  // SYNC FIELDS
+  @Prop({ default: 'pending' }) // pending, synced, failed
+  syncStatus: string;
 
   @Prop()
-  errorMessage: string;
+  syncedAt: Date;
+
+  @Prop()
+  syncError: string;
+
+  @Prop({ default: 0 })
+  syncRetries: number;
 }
-export type OrderDocument = HydratedDocument<Order>;
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
 
-// Create indexes
-OrderSchema.index({ orderId: 1 }, { unique: true });
+// Virtual to expose "OrderId" as an alias to _id to match your payload exactly
+OrderSchema.virtual('OrderId')
+  .get(function (this: { _id: string }) {
+    return this._id;
+  })
+  .set(function (this: { _id: string }, v: string) {
+    this._id = v;
+  });
+
+// Helpful indexes
 OrderSchema.index({ 'GeneralInfo.ReceivedDate': -1 });
 OrderSchema.index({ 'GeneralInfo.Status': 1 });
-OrderSchema.index({ processingStatus: 1 });
-OrderSchema.index({ lastSyncedAt: -1 });
-
-// Define self-referencing subdocument schema AFTER class -> schema creation
-export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
-OrderItemSchema.add({ CompositeSubItems: [OrderItemSchema] });
+OrderSchema.index({ 'ShippingInfo.TrackingNumber': 1 });

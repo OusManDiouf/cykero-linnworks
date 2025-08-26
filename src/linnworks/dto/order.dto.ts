@@ -1,418 +1,167 @@
-// src/linnworks/dto/order.dto.ts
+// DTOs that implement shared shapes (Dates replaced with strings)
+// Keep validators minimal and practical.
+
 import {
   IsArray,
   IsBoolean,
   IsDateString,
   IsDefined,
-  IsEmail,
-  IsInt,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PartialType } from '@nestjs/mapped-types';
+import {
+  AddressLW as AddressShape,
+  CustomerInfo as CustomerInfoShape,
+  GeneralInfo as GeneralInfoShape,
+  OrderDtoShape,
+  ShippingInfo as ShippingInfoShape,
+  TotalsInfo as TotalsInfoShape,
+} from '../types/order.types';
 
-// Leaf DTOs
+export class AddressDto implements AddressShape {
+  @IsString() @IsOptional() EmailAddress!: string;
+  @IsString() @IsOptional() Address1!: string;
+  @IsString() @IsOptional() Address2!: string;
+  @IsString() @IsOptional() Address3!: string;
+  @IsString() @IsOptional() Town!: string;
+  @IsString() @IsOptional() Region!: string;
+  @IsString() @IsOptional() PostCode!: string;
+  @IsString() @IsOptional() Country!: string;
+  @IsString() @IsOptional() Continent!: string;
+  @IsString() @IsOptional() FullName!: string;
+  @IsString() @IsOptional() Company!: string;
+  @IsString() @IsOptional() PhoneNumber!: string;
+  @IsString() @IsOptional() CountryId!: string;
+}
 
-export class OrderIdentifierDto {
-  @IsNumber()
+export class GeneralInfoDto
+  implements Omit<GeneralInfoShape, 'ReceivedDate' | 'DespatchByDate'>
+{
+  @IsNumber() @IsDefined() Status!: number;
+  @IsBoolean() @IsOptional() LabelPrinted!: boolean;
+  @IsString() @IsOptional() LabelError!: string;
+  @IsBoolean() @IsOptional() InvoicePrinted!: boolean;
+  @IsString() @IsOptional() InvoicePrintError!: string;
+  @IsBoolean() @IsOptional() PickListPrinted!: boolean;
+  @IsString() @IsOptional() PickListPrintError!: string;
+  @IsBoolean() @IsOptional() IsRuleRun!: boolean;
+  @IsNumber() @IsOptional() Notes!: number;
+  @IsBoolean() @IsOptional() PartShipped!: boolean;
+  @IsNumber() @IsOptional() Marker!: number;
+  @IsBoolean() @IsOptional() IsParked!: boolean;
+  @IsString() @IsOptional() ReferenceNum!: string;
+  @IsString() @IsOptional() SecondaryReference!: string;
+  @IsString() @IsOptional() ExternalReferenceNum!: string;
+  @IsString() @IsOptional() Source!: string;
+  @IsString() @IsOptional() SubSource!: string;
+  @IsBoolean() @IsOptional() HoldOrCancel!: boolean;
+  @IsBoolean() @IsOptional() HasScheduledDelivery!: boolean;
+  @IsString() @IsOptional() Location!: string;
+  @IsNumber() @IsOptional() NumItems!: number;
+
+  // @IsDateString() @IsOptional() ReceivedDate?: string;
+  // @IsDateString() @IsOptional() DespatchByDate?: string;
+  @IsDateString()
   @IsDefined()
-  IdentifierId!: number;
+  ReceivedDate!: string;
 
-  @IsBoolean()
+  @IsDateString()
   @IsDefined()
-  IsCustom!: boolean;
-
-  @IsOptional()
-  @IsString()
-  ImageId?: string;
-
-  @IsOptional()
-  @IsString()
-  ImageUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  Tag?: string;
-
-  @IsOptional()
-  @IsString()
-  Name?: string;
+  DespatchByDate!: string;
 }
 
-export class ScheduledDeliveryDto {
-  @IsOptional()
-  @IsDateString()
-  From?: string;
-
-  @IsOptional()
-  @IsDateString()
-  To?: string;
+export class ShippingInfoDto implements ShippingInfoShape {
+  @IsString() @IsOptional() Vendor!: string;
+  @IsString() @IsOptional() PostalServiceId!: string;
+  @IsString() @IsOptional() PostalServiceName!: string;
+  @IsNumber() @IsOptional() TotalWeight!: number;
+  @IsNumber() @IsOptional() ItemWeight!: number;
+  @IsString() @IsOptional() PackageCategoryId!: string;
+  @IsString() @IsOptional() PackageCategory!: string;
+  @IsString() @IsOptional() PackageTypeId!: string;
+  @IsString() @IsOptional() PackageType!: string;
+  @IsNumber() @IsOptional() PostageCost!: number;
+  @IsNumber() @IsOptional() PostageCostExTax!: number;
+  @IsString() @IsOptional() TrackingNumber!: string;
+  @IsBoolean() @IsOptional() ManualAdjust!: boolean;
 }
 
-export class GeneralInfoDto {
-  @IsInt()
-  @IsDefined()
-  Status!: number;
-
-  @IsOptional()
-  @IsBoolean()
-  LabelPrinted?: boolean;
-
-  @IsOptional()
-  @IsString()
-  LabelError?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  InvoicePrinted?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  PickListPrinted?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  IsRuleRun?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  Notes?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  PartShipped?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  Marker?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  IsParked?: boolean;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OrderIdentifierDto)
-  Identifiers?: OrderIdentifierDto[];
-
-  @IsOptional()
-  @IsString()
-  ReferenceNum?: string;
-
-  @IsOptional()
-  @IsString()
-  SecondaryReference?: string;
-
-  @IsOptional()
-  @IsString()
-  ExternalReferenceNum?: string;
-
-  @IsOptional()
-  @IsDateString()
-  ReceivedDate?: string;
-
-  @IsOptional()
-  @IsString()
-  Source?: string;
-
-  @IsOptional()
-  @IsString()
-  SubSource?: string;
-
-  @IsOptional()
-  @IsString()
-  SiteCode?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  HoldOrCancel?: boolean;
-
-  @IsOptional()
-  @IsDateString()
-  DespatchByDate?: string;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ScheduledDeliveryDto)
-  ScheduledDelivery?: ScheduledDeliveryDto;
-
-  @IsOptional()
-  @IsBoolean()
-  HasScheduledDelivery?: boolean;
-
-  @IsOptional()
-  @IsString()
-  Location?: string;
-
-  @IsOptional()
-  @IsInt()
-  NumItems?: number;
+export class TotalsInfoDto implements TotalsInfoShape {
+  @IsNumber() @IsOptional() Subtotal!: number;
+  @IsNumber() @IsOptional() PostageCost!: number;
+  @IsNumber() @IsOptional() PostageCostExTax!: number;
+  @IsNumber() @IsOptional() Tax!: number;
+  @IsNumber() @IsOptional() TotalCharge!: number;
+  @IsString() @IsOptional() PaymentMethod!: string;
+  @IsString() @IsOptional() PaymentMethodId!: string;
+  @IsNumber() @IsOptional() ProfitMargin!: number;
+  @IsNumber() @IsOptional() TotalDiscount!: number;
+  @IsString() @IsOptional() Currency!: string;
+  @IsNumber() @IsOptional() CountryTaxRate!: number;
+  @IsNumber() @IsOptional() ConversionRate!: number;
 }
 
-export class AddressDto {
-  @IsOptional()
-  @IsString()
-  CustomerName?: string;
+export class CustomerInfoDto implements Omit<CustomerInfoShape, never> {
+  @IsString() @IsOptional() ChannelBuyerName!: string;
 
-  @IsOptional()
-  @IsString()
-  Company?: string;
-
-  @IsOptional()
-  @IsString()
-  Address1?: string;
-
-  @IsOptional()
-  @IsString()
-  Address2?: string;
-
-  @IsOptional()
-  @IsString()
-  Address3?: string;
-
-  @IsOptional()
-  @IsString()
-  Town?: string;
-
-  @IsOptional()
-  @IsString()
-  Region?: string;
-
-  @IsOptional()
-  @IsString()
-  PostCode?: string;
-
-  @IsOptional()
-  @IsString()
-  Country?: string;
-
-  @IsOptional()
-  @IsString()
-  CountryId?: string;
-
-  @IsOptional()
-  @IsString()
-  PhoneNumber?: string;
-}
-
-export class CustomerInfoDto {
-  @IsOptional()
-  @IsString()
-  ChannelBuyerName?: string;
-
-  @IsOptional()
-  @IsString()
-  AccountName?: string;
-
-  @IsOptional()
-  @IsString()
-  CustomerTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  CustomerFirstName?: string;
-
-  @IsOptional()
-  @IsString()
-  CustomerLastName?: string;
-
-  @IsOptional()
-  @IsEmail()
-  CustomerEmailAddress?: string;
-
-  @IsOptional()
-  @IsString()
-  CustomerPhoneNumber?: string;
-
-  @IsOptional()
   @ValidateNested()
   @Type(() => AddressDto)
-  BillingAddress?: AddressDto;
+  Address!: AddressDto;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => AddressDto)
-  ShippingAddress?: AddressDto;
+  BillingAddress!: AddressDto;
 }
 
-export class ShippingInfoDto {
-  @IsOptional()
-  @IsString()
-  Vendor?: string;
+export class OrderDto implements OrderDtoShape {
+  // Mongo's id as a string, mirrored to OrderId in API plane
+  @IsString() @IsDefined() _id!: string;
 
-  @IsOptional()
-  @IsString()
-  PostalServiceName?: string;
-
-  @IsOptional()
-  @IsString()
-  PostalServiceTag?: string;
-
-  @IsOptional()
-  @IsNumber()
-  TotalWeight?: number;
-
-  @IsOptional()
-  @IsNumber()
-  ItemWeight?: number;
-
-  @IsOptional()
-  @IsNumber()
-  PackagingWeight?: number;
-
-  @IsOptional()
-  @IsString()
-  PackagingGroup?: string;
-
-  @IsOptional()
-  @IsString()
-  PackagingType?: string;
-
-  @IsOptional()
-  @IsNumber()
-  PostageCost?: number;
-
-  @IsOptional()
-  @IsNumber()
-  PostageCostExTax?: number;
-
-  @IsOptional()
-  @IsString()
-  TrackingNumber?: string;
-}
-
-export class OrderItemDto {
-  @IsString()
-  @IsDefined()
-  ItemId!: string;
-
-  @IsOptional()
-  @IsString()
-  StockItemId?: string;
-
-  @IsOptional()
-  @IsString()
-  ItemNumber?: string;
-
-  @IsString()
-  @IsDefined()
-  SKU!: string;
-
-  @IsString()
-  @IsDefined()
-  ItemTitle!: string;
-
-  @IsInt()
-  @IsDefined()
-  Quantity!: number;
-
-  @IsOptional()
-  @IsNumber()
-  UnitCost?: number;
-
-  @IsOptional()
-  @IsNumber()
-  UnitPrice?: number;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
-  CompositeSubItems?: OrderItemDto[];
-}
-
-// Root DTOs
-
-// Flexible “general” DTO for transfers/responses/usages across layers.
-// Most fields are optional; use CreateOrderDto for enforcing minimum required on creation.
-export class OrderDto {
-  @IsString()
-  @IsDefined()
-  orderId!: string;
-
-  @IsInt()
-  @IsDefined()
-  NumOrderId!: number;
+  @IsString() @IsDefined() OrderId!: string;
+  @IsNumber() @IsDefined() NumOrderId!: number;
+  @IsBoolean() @IsOptional() Processed!: boolean;
+  @IsString() @IsOptional() FulfilmentLocationId!: string;
 
   @ValidateNested()
   @Type(() => GeneralInfoDto)
-  @IsDefined()
   GeneralInfo!: GeneralInfoDto;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => ShippingInfoDto)
-  ShippingInfo?: ShippingInfoDto;
+  ShippingInfo!: ShippingInfoDto;
 
   @ValidateNested()
   @Type(() => CustomerInfoDto)
-  @IsDefined()
   CustomerInfo!: CustomerInfoDto;
 
-  @IsOptional()
+  @ValidateNested()
+  @Type(() => TotalsInfoDto)
+  TotalsInfo!: TotalsInfoDto;
+
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
-  Items?: OrderItemDto[];
-
-  // Represent Map<string,string> as a POJO for DTO usage
   @IsOptional()
-  @IsObject()
-  ExtendedProperties?: Record<string, string>;
+  ExtendedProperties!: Record<string, unknown>[];
 
+  @IsArray()
   @IsOptional()
-  @IsNumber()
-  TotalCharge?: number;
+  FolderName!: string[];
 
+  @IsArray()
   @IsOptional()
-  @IsNumber()
-  TotalDiscount?: number;
+  Items!: Record<string, unknown>[];
 
+  @IsArray()
   @IsOptional()
-  @IsNumber()
-  ProfitMargin?: number;
+  Notes!: Record<string, unknown>[];
 
+  @IsBoolean()
   @IsOptional()
-  @IsNumber()
-  TotalCost?: number;
+  connected?: boolean;
 
-  @IsOptional()
-  @IsString()
-  Currency?: string;
-
-  @IsOptional()
-  @IsNumber()
-  ConversionRate?: number;
-
-  @IsOptional()
-  @IsString()
-  processingStatus?: string;
-
-  @IsOptional()
   @IsDateString()
-  lastSyncedAt?: string;
-
   @IsOptional()
-  @IsString()
-  source?: string;
-
-  @IsOptional()
-  @IsInt()
-  retryCount?: number;
-
-  @IsOptional()
-  @IsString()
-  errorMessage?: string;
+  timestamp?: string;
 }
-
-// Enforce a minimal set needed for creating a valid Order record
-// Requires: orderId, NumOrderId, GeneralInfo.Status, and CustomerInfo (object may be empty)
-export class CreateOrderDto extends OrderDto {}
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-export class UpdateOrderDto extends PartialType(OrderDto) {}

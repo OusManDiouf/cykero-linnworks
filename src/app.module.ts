@@ -1,15 +1,14 @@
 import { Logger, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ZohoBooksModule } from '@cykerosoftware/zoho-books';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import databaseConfig from './config/database.config';
 import linnworksConfig from './config/linnworks.config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LinnworksModule } from './linnworks/linnworks.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BullModule } from '@nestjs/bullmq';
 import { AppRedisModule } from './redis/redis.module';
+import { ZohoBooksModule } from './zoho-books/zoho-books.module';
 
 const logger = new Logger('AppModule');
 @Module({
@@ -34,24 +33,10 @@ const logger = new Logger('AppModule');
       }),
       inject: [ConfigService],
     }),
-    BullModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('database.redis.host'),
-          port: configService.get<number>('database.redis.port'),
-          password: configService.get<string>('database.redis.password'),
-        },
-      }),
-      inject: [ConfigService],
-    }),
     ScheduleModule.forRoot(),
-    ZohoBooksModule.forRoot({
-      baseUrl: 'https://books.zoho.com/api/v3',
-      authToken: 'your-token',
-      organizationId: 'your-org-id',
-    }),
     ScheduleModule.forRoot(),
     LinnworksModule,
+    ZohoBooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

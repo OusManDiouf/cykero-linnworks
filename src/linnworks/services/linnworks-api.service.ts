@@ -5,6 +5,30 @@ import { catchError, firstValueFrom, map, retry } from 'rxjs';
 import { TokenManagerService } from './token-manager.service';
 import { OrderDto } from '../dto/order.dto';
 
+export interface DateFieldFilter {
+  FieldCode?: string;
+  Type: 'Range' | 'SingleDate';
+  DateFrom?: string;
+  DateTo?: string;
+  Value?: number;
+}
+
+export interface GetOpenOrdersFilters {
+  DateFields?: DateFieldFilter[];
+  ListFields?: Array<{
+    FieldCode: string;
+    Type: number;
+    Value: number;
+  }>;
+  TextFields?: Array<{
+    FieldCode: string;
+    Type: number;
+    Text: string;
+  }>;
+  BooleanFields?: any[];
+  NumericFields?: any[];
+}
+
 export interface GetOrdersRequest {
   entriesPerPage?: number;
   pageNumber?: number;
@@ -16,10 +40,21 @@ export interface GetOrdersRequest {
 }
 
 export interface GetOpenOrdersRequest {
-  ViewId?: number;
-  LocationId?: string;
-  EntriesPerPage?: number;
-  PageNumber?: number;
+  entriesPerPage?: number;
+  pageNumber?: number;
+  filters?: GetOpenOrdersFilters;
+  sorting?: Array<{
+    FieldCode?: string;
+    Direction: number;
+  }>;
+  fulfilmentCenter?: string;
+  additionalFilter?: string;
+}
+
+export interface PollingStrategy {
+  name: 'incremental' | 'id-based' | 'fallback';
+  reason: string;
+  estimatedApiCalls: number;
 }
 
 export interface GetAllOpenOrdersFilter {
@@ -68,6 +103,7 @@ export class LinnworksApiService {
   private readonly logger = new Logger(LinnworksApiService.name);
   private readonly apiUrl: string;
   private readonly maxRetries: number;
+  private readonly batchSize: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -78,6 +114,9 @@ export class LinnworksApiService {
     this.maxRetries = this.configService.get<number>(
       'linnworks.maxRetries',
     ) as number;
+    this.batchSize = this.configService.get<number>(
+      'linnworks.batchSize',
+    ) as number;
   }
 
   private async getHeaders(): Promise<Record<string, string>> {
@@ -87,6 +126,256 @@ export class LinnworksApiService {
       'Content-Type': 'application/json; charset=UTF-8',
       Accept: 'application/json',
     };
+  }
+
+  /**
+   * Get all open order IDs (no pagination limit)
+   */
+  public async getAllOpenOrderIds(): Promise<string[]> {
+    return this.makeApiCall(async (headers) => {
+      const payload = {
+        fulfilmentCenter: '00000000-0000-0000-0000-000000000000',
+      };
+
+      const response = await firstValueFrom(
+        this.httpService
+          .post(`${this.apiUrl}/Orders/GetAllOpenOrders`, payload, {
+            headers,
+          })
+          .pipe(
+            retry(this.maxRetries),
+            map((response) => response.data),
+            catchError((error) => {
+              const data = error.response?.data ?? error.message;
+              this.logger.error(
+                'API Error:',
+                typeof data === 'string' ? data : JSON.stringify(data),
+              );
+              throw new HttpException(
+                `Linnworks API error: ${error.message}`,
+                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
+
+      return Array.isArray(response) ? response : [];
+    });
+  }
+  /**
+   * Retrieves details for open orders by their order IDs. Supports efficient batching and is not limited by the number of orders.
+   * @param {GetOpenOrdersDetailsRequest} request - The request object containing order IDs and optional detail level
+   * @param {string[]} request.OrderIds - List of order IDs as unique identifiers (UUIDs)
+   * @param {string[]} [request.DetailLevel] - Optional list of detail level limiters. If null/empty, full details are returned
+   * @returns {Promise<OrderDto[]>} List of order details
+   */
+  async getOpenOrderDetailsByIds(
+    request: GetOpenOrdersDetailsRequest,
+  ): Promise<OrderDto[]> {
+    if (!request?.OrderIds || request.OrderIds.length === 0) {
+      return [];
+    }
+
+    // Process in batches to avoid API limits while using the tested endpoint
+    const batchSize = Math.max(1, this.batchSize || 50);
+    const batches: string[][] = [];
+    for (let i = 0; i < request.OrderIds.length; i += batchSize) {
+      batches.push(request.OrderIds.slice(i, i + batchSize));
+    }
+
+    this.logger.debug(
+      `ℹ️  Fetching open order details for ${request.OrderIds.length} IDs in ${batches.length} batches`,
+    );
+
+    const allOrders: OrderDto[] = [];
+
+    const extractOrderArray = (u: unknown): OrderDto[] => {
+      if (Array.isArray(u)) {
+        return u as OrderDto[];
+      }
+      if (u && typeof u === 'object') {
+        const obj = u as Record<string, unknown>;
+        const fromOrders = obj['Orders'];
+        const fromData = obj['Data'];
+        if (Array.isArray(fromOrders)) return fromOrders as OrderDto[];
+        if (Array.isArray(fromData)) return fromData as OrderDto[];
+      }
+      return [];
+    };
+
+    for (const batch of batches) {
+      try {
+        const orders = await this.makeApiCall(async (headers) => {
+          const payload: Record<string, unknown> = {
+            OrderIds: batch,
+          };
+          if (request.DetailLevel && request.DetailLevel.length > 0) {
+            payload.DetailLevel = request.DetailLevel;
+          }
+
+          const result = await firstValueFrom(
+            this.httpService
+              .post(`${this.apiUrl}/OpenOrders/GetOpenOrdersDetails`, payload, {
+                headers,
+              })
+              .pipe(
+                retry(this.maxRetries),
+                map((res: { data: unknown }) => extractOrderArray(res?.data)),
+                catchError((error) => {
+                  const data = error.response?.data ?? error.message;
+                  this.logger.error(
+                    'API Error:',
+                    typeof data === 'string' ? data : JSON.stringify(data),
+                  );
+                  throw new HttpException(
+                    `Linnworks API error: ${error.message}`,
+                    error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                  );
+                }),
+              ),
+          );
+
+          return result;
+        });
+
+        allOrders.push(...orders);
+
+        // Small delay between batches to be API-friendly
+        if (batches.length > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        this.logger.error(
+          `❌ Failed to fetch batch of ${batch.length} orders:`,
+          error,
+        );
+        // Continue with other batches rather than failing completely
+      }
+    }
+
+    return allOrders;
+  }
+
+  // ===========================================================================
+  /**
+   * INTELLIGENT POLLING: Automatically chooses the best strategy
+   */
+  async getRecentOpenOrders(
+    fromDate: Date,
+    processedOrderIds: Set<string>,
+  ): Promise<{
+    orders: any[];
+    strategy: PollingStrategy;
+    totalOpenOrderIds?: string[];
+  }> {
+    const timeSinceLastPoll = Date.now() - fromDate.getTime();
+    const hoursAgo = timeSinceLastPoll / (1000 * 60 * 60);
+
+    // Strategy selection logic
+    let strategy: PollingStrategy;
+
+    // Recent polling but no history = Use incremental strategy
+    strategy = {
+      name: 'incremental',
+      reason: 'Recent polling window - date filtering is efficient',
+      estimatedApiCalls: 1,
+    };
+
+    this.logger.debug(`Using ${strategy.name} strategy: ${strategy.reason}`);
+
+    try {
+      let totalOpenOrderIds: string[] | undefined;
+      const orders = await this.getOpenOrdersIncremental(fromDate);
+
+      return { orders, strategy, totalOpenOrderIds };
+    } catch (error) {
+      this.logger.error(
+        `${strategy.name} strategy failed, trying fallback:`,
+        error,
+      );
+
+      // If chosen strategy fails, try fallback - NOT IMPLEMENTED YET
+
+      throw error;
+    }
+  }
+
+  /**
+   * STRATEGY 1: Incremental Date-Based Polling (Most Efficient for Regular Load)
+   * Uses the GetOpenOrders endpoint with DateFields filter
+   */
+  async getOpenOrdersIncremental(
+    fromDate: Date,
+    toDate?: Date,
+  ): Promise<any[]> {
+    const dateFilter: DateFieldFilter = {
+      // FieldCode: 'GENERAL_INFO_RECEIVEDDATE', // Received date field
+      Type: 'Range',
+      DateFrom: fromDate.toISOString(),
+      DateTo: (toDate || new Date()).toISOString(),
+    };
+
+    const request: GetOpenOrdersRequest = {
+      entriesPerPage: this.batchSize,
+      pageNumber: 1,
+      filters: {
+        DateFields: [dateFilter],
+      },
+      sorting: [
+        {
+          // FieldCode: 'GENERAL_INFO_RECEIVEDDATE',
+          Direction: 1, // Ascending - oldest first
+        },
+      ],
+      fulfilmentCenter: '00000000-0000-0000-0000-000000000000', // All locations
+    };
+
+    console.log(JSON.stringify(request, null, 2));
+
+    return this.callGetOpenOrders(request);
+  }
+
+  /**
+   * Call the advanced GetOpenOrders endpoint (with filtering support)
+   */
+  private async callGetOpenOrders(
+    request: GetOpenOrdersRequest,
+  ): Promise<any[]> {
+    return this.makeApiCall(async (headers) => {
+      const payload: GetOpenOrdersRequest = {
+        entriesPerPage: request.entriesPerPage || this.batchSize,
+        pageNumber: request.pageNumber || 1,
+        filters: request.filters,
+        sorting: request.sorting,
+        fulfilmentCenter:
+          request.fulfilmentCenter || '00000000-0000-0000-0000-000000000000',
+        additionalFilter: request.additionalFilter || '',
+      };
+
+      const response = await firstValueFrom(
+        this.httpService
+          .post(`${this.apiUrl}/Orders/GetOpenOrders`, payload, {
+            headers,
+          })
+          .pipe(
+            retry(this.maxRetries),
+            map((response) => response.data),
+            catchError((error) => {
+              const data = error.response?.data ?? error.message;
+              this.logger.error(
+                'API Error:',
+                typeof data === 'string' ? data : JSON.stringify(data),
+              );
+              throw new HttpException(
+                `Linnworks API error: ${error.message}`,
+                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
+
+      return response || [];
+    });
   }
 
   async processOrder(req: ProcessOrderRequest): Promise<ProcessOrderResponse> {
@@ -202,101 +491,6 @@ export class LinnworksApiService {
           .pipe(
             retry(this.maxRetries),
             map((res) => res.data as { TotalsInfo?: any; ShippingInfo?: any }),
-            catchError((error) => {
-              const data = error.response?.data ?? error.message;
-              this.logger.error(
-                'API Error:',
-                typeof data === 'string' ? data : JSON.stringify(data),
-              );
-              throw new HttpException(
-                `Linnworks API error: ${error.message}`,
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
-    });
-  }
-
-  /**
-   * Retrieves details for open orders by their order IDs. This method is not limited by the number of orders.
-   * @param {GetOpenOrdersDetailsRequest} request - The request object containing order IDs and optional detail level
-   * @param {string[]} request.OrderIds - List of order IDs as unique identifiers (UUIDs)
-   * @param {string[]} [request.DetailLevel] - Optional list of detail level limiters. If null/empty, full details are returned
-   * @returns {Promise<OrderDto[]>} List of order details
-   */
-  async getOpenOrdersDetails(
-    request: GetOpenOrdersDetailsRequest,
-  ): Promise<OrderDto[]> {
-    if (!request?.OrderIds || request.OrderIds.length === 0) {
-      return [];
-    }
-
-    return this.makeApiCall(async (headers) => {
-      const payload: Record<string, unknown> = {
-        OrderIds: request.OrderIds,
-      };
-      if (request.DetailLevel && request.DetailLevel.length > 0) {
-        payload.DetailLevel = request.DetailLevel;
-      }
-
-      const orders = await firstValueFrom(
-        this.httpService
-          .post(`${this.apiUrl}/OpenOrders/GetOpenOrdersDetails`, payload, {
-            headers,
-          })
-          .pipe(
-            retry(this.maxRetries),
-            map((res) => {
-              const data = res?.data as unknown;
-              // API returns { Orders: [...] }. Fall back to Data or direct array if needed.
-              const arr = (data as any)?.Orders ?? (data as any)?.Data ?? data;
-              return Array.isArray(arr) ? (arr as OrderDto[]) : [];
-            }),
-            catchError((error) => {
-              const data = error.response?.data ?? error.message;
-              this.logger.error(
-                'API Error:',
-                typeof data === 'string' ? data : JSON.stringify(data),
-              );
-              throw new HttpException(
-                `Linnworks API error: ${error.message}`,
-                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-              );
-            }),
-          ),
-      );
-
-      return orders;
-    });
-  }
-
-  async getOpenOrders(params: GetOpenOrdersRequest = {}): Promise<{
-    ResultCountRemovedByPostFilter: number;
-    PageNumber: number;
-    EntriesPerPage: number;
-    TotalEntries: number;
-    TotalPages: number;
-    Data: OrderDto[];
-  }> {
-    return this.makeApiCall(async (headers) => {
-      const payload = {
-        ViewId: params.ViewId ?? 1,
-        LocationId: params.LocationId ?? '00000000-0000-0000-0000-000000000000',
-        EntriesPerPage:
-          params.EntriesPerPage ??
-          (this.configService.get<number>('linnworks.batchSize') as number),
-        PageNumber: params.PageNumber ?? 1,
-      };
-
-      return await firstValueFrom(
-        this.httpService
-          .post(`${this.apiUrl}/OpenOrders/GetOpenOrders`, payload, {
-            headers,
-          })
-          .pipe(
-            retry(this.maxRetries),
-            map((response) => response.data),
             catchError((error) => {
               const data = error.response?.data ?? error.message;
               this.logger.error(
