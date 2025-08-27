@@ -4,7 +4,10 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom, map, retry } from 'rxjs';
 import { TokenManagerService } from './token-manager.service';
 import { OrderDto } from '../dto/order.dto';
-import { LinnworksStockLevelUpdate, StockUpdateItem, } from '../../zoho-books/types/zoho-books-types';
+import {
+  LinnworksStockLevelUpdate,
+  StockUpdateItem,
+} from '../../zoho-books/types/zoho-books-types';
 
 export interface DateFieldFilter {
   FieldCode?: string;
