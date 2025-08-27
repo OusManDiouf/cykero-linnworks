@@ -4,6 +4,9 @@ import { OrderRepositoryService } from '../services/order-repository.service';
 import { OrderProcessorService } from '../services/order-processor.service';
 import { OrderPollingService } from '../services/order-polling.service';
 import { SyncSchedulerService } from '../services/sync-scheduler.service';
+import { OrderTransformer } from '../../zoho-books/transformers/order.transformer';
+import { ZohoBooksCustomerService } from '../../zoho-books/services/zoho-books-customer.service';
+import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
 
 @Controller('linnworks')
 export class LinnworksController {
@@ -14,6 +17,9 @@ export class LinnworksController {
     private readonly pollingService: OrderPollingService,
     private readonly orderProcessorService: OrderProcessorService,
     private readonly syncScheduler: SyncSchedulerService,
+    private readonly orderTransformer: OrderTransformer,
+    private readonly zohoBooksCustomerService: ZohoBooksCustomerService,
+    private readonly booksApiService: ZohoBooksApiService,
   ) {}
 
   @Post('poll')
@@ -46,7 +52,7 @@ export class LinnworksController {
   async getStatus() {
     const connectionTest = await this.linnworksApi.testConnection();
 
-    const orderId = '4a9090e0-b011-4a94-8f2a-fcf991a3f1f7';
+    const orderId = 'fa525ffc-1015-4b52-ae6f-5d2697ff6963';
 
     // await this.linnworksApi.setOrderShippingInfo({
     //   orderId,
@@ -98,10 +104,31 @@ export class LinnworksController {
     //   });
     // const orderFromDb = await this.orderRepository.getSavedOrderIds();
 
-    const processOpenOrders =
-      await this.orderProcessorService.processOpenOrders();
+    // const processOpenOrders =
+    //   await this.orderProcessorService.processOpenOrders();
+
+    const getOpenOrdersDetails =
+      await this.linnworksApi.getOpenOrderDetailsByIds({
+        OrderIds: [orderId],
+      });
+
+    // const result = await this.zohoBooksCustomerService.ensureCustomerForOrder(
+    //   getOpenOrdersDetails.at(0) as OrderDto,
+    // );
+
+    const customerId = '347732000051177493';
+
+    // const orderTransformer = this.orderTransformer.transformToZohoSalesOrder(
+    //   getOpenOrdersDetails.at(0) as OrderDto,
+    //   customerId,
+    // );
+
+    const zohoItem = await this.booksApiService.getItemBySku(
+      'SM/TE/IPH/15+/512GB/GREE/C/ANY/R/1',
+    );
+
     return {
-      processOpenOrders,
+      zohoItem,
       connected: connectionTest,
       timestamp: new Date().toISOString(),
     };

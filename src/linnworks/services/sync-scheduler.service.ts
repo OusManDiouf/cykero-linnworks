@@ -12,7 +12,7 @@ export class SyncSchedulerService {
   @Cron(CronExpression.EVERY_MINUTE) // Every minute
   async scheduledSync(): Promise<void> {
     if (this.isSyncing) {
-      this.logger.debug('🔃  Sync already in progress, skipping');
+      this.logger.debug('🔂 Sync already in progress, skipping');
       return;
     }
 

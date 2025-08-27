@@ -12,6 +12,7 @@ import { OrderProcessorService } from './services/order-processor.service';
 import { OrderPollingService } from './services/order-polling.service';
 import { SyncSchedulerService } from './services/sync-scheduler.service';
 import { OrderSyncService } from './services/order-sync.service';
+import { ZohoBooksModule } from '../zoho-books/zoho-books.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { OrderSyncService } from './services/order-sync.service';
     }),
     ScheduleModule.forRoot(),
     MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
+    ZohoBooksModule,
   ],
   controllers: [LinnworksController],
   providers: [
