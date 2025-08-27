@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   CreateZohoCustomerParams,
   SearchZohoContactResult,
+  StockUpdateItem,
   Warehouse,
   ZohoBookItem,
   ZohoBookItemResponse,
@@ -12,6 +13,7 @@ import {
   ZohoBooksSalesOrderResponse,
   ZohoContact,
   ZohoItem,
+  ZohoWebhookLineItem,
 } from '../types/zoho-books-types';
 import Bottleneck from 'bottleneck';
 import { HttpService } from '@nestjs/axios';
@@ -64,6 +66,114 @@ export class ZohoBooksApiService {
   // --- Items helpers ---
   private itemsUrl(): string {
     return `${this.ZOHO_BOOK_API}/items?organization_id=${this.ORGANIZATION_ID}`;
+  }
+
+  /**
+   * Extract item IDs from webhook line items
+   */
+  public getItemIds(items: ZohoWebhookLineItem[]): string[] {
+    return items.map(({ item_id }) => item_id);
+  }
+
+  /**
+   * Get all item details from Zoho Inventory API
+   */
+  public async getAllItemDetails(itemIds: string[]): Promise<ZohoItem[]> {
+    if (itemIds.length === 0) return [];
+
+    try {
+      const accessToken = await this.zohoAuthService.getAccessToken();
+      const url = new URL(`${this.ZOHO_BOOK_API}/itemdetails`);
+
+      url.searchParams.append('organization_id', this.ORGANIZATION_ID);
+      url.searchParams.append('item_ids', itemIds.join(','));
+
+      const response = await firstValueFrom(
+        this.httpService.get(url.toString(), {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      const items = response.data.items as ZohoItem[];
+
+      return items.map((item) => ({
+        item_id: item.item_id,
+        name: item.name,
+        tax_id: item.tax_id,
+        sku: item.sku,
+        rate: item.rate,
+        status: item.status,
+        warehouses: item.warehouses.map((wh) => ({
+          warehouse_id: wh.warehouse_id,
+          warehouse_name: wh.warehouse_name,
+          warehouse_actual_available_for_sale_stock:
+            wh.warehouse_actual_available_for_sale_stock,
+        })),
+      }));
+    } catch (error) {
+      this.logger.error('Failed to fetch item details from Zoho:', error);
+      throw error;
+    }
+  }
+
+  // /**
+  //  * Calculate stock levels by warehouse from Zoho items
+  //  */
+  // public getAggregateStocksItemByWarehouses(
+  //   items: ZohoItem[],
+  //   targetWarehouses: string[] = [this.GMBH_WAREHOUSE_ID],
+  // ): StockUpdateItem[] {
+  //   return items
+  //     .filter(
+  //       (item): item is ZohoItem & { sku: string } =>
+  //         typeof item.sku === 'string' && item.sku.length > 0,
+  //     )
+  //     .map((item) => {
+  //       const totalStock = item.warehouses
+  //         .filter((warehouse) =>
+  //           targetWarehouses.includes(warehouse.warehouse_id),
+  //         )
+  //         .reduce((total, warehouse) => {
+  //           return total + warehouse.warehouse_actual_available_for_sale_stock;
+  //         }, 0);
+  //
+  //       return {
+  //         itemSKU: item.sku,
+  //         itemStocksCount: totalStock,
+  //         warehouseName: wa
+  //       };
+  //     });
+  // }
+
+  /**
+   * Calculate stock levels by warehouse from Zoho items
+   * Returns one entry per target warehouse (no summing)
+   */
+  public getStocksItemByWarehouse(
+    items: ZohoItem[],
+    targetWarehouses: string[] = [this.GMBH_WAREHOUSE_ID],
+  ): StockUpdateItem[] {
+    return items
+      .filter(
+        (item): item is ZohoItem & { sku: string } =>
+          typeof item.sku === 'string' && item.sku.length > 0,
+      )
+      .flatMap((item) => {
+        const matchedWarehouses = item.warehouses.filter((warehouse) =>
+          targetWarehouses.includes(warehouse.warehouse_id),
+        );
+
+        return matchedWarehouses.map((warehouse) => ({
+          itemSKU: item.sku,
+          itemStocksCount: warehouse.warehouse_actual_available_for_sale_stock,
+          warehouseName: warehouse.warehouse_name,
+          // If needed later and the type allows, you can include the warehouse ID:
+          // warehouseId: warehouse.warehouse_id,
+        }));
+      });
   }
 
   /**

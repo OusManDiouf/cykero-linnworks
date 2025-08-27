@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom, map, retry } from 'rxjs';
 import { TokenManagerService } from './token-manager.service';
 import { OrderDto } from '../dto/order.dto';
+import { LinnworksStockLevelUpdate, StockUpdateItem, } from '../../zoho-books/types/zoho-books-types';
 
 export interface DateFieldFilter {
   FieldCode?: string;
@@ -126,6 +127,137 @@ export class LinnworksApiService {
       'Content-Type': 'application/json; charset=UTF-8',
       Accept: 'application/json',
     };
+  }
+
+  /**
+   * Update stock levels in Linnworks for multiple items
+   */
+  async updateStockLevels(stockUpdates: StockUpdateItem[]): Promise<void> {
+    if (stockUpdates.length === 0) {
+      this.logger.debug('No stock updates to process');
+      return;
+    }
+
+    try {
+      // Resolve all locations at once, then map by name (case-insensitive)
+      const locations = await this.getStockLocations();
+      const nameToId = new Map<string, string>(
+        locations.map((l) => [l.LocationName.toLowerCase(), l.StockLocationId]),
+      );
+
+      // Convert to Linnworks format with the correct LocationId per item
+      const stockLevels: LinnworksStockLevelUpdate[] = stockUpdates.map(
+        (item) => {
+          const key = (item.warehouseName || '').toLowerCase();
+          const locationId = nameToId.get(key);
+
+          if (!locationId) {
+            throw new Error(
+              `Warehouse "${item.warehouseName}" not found in Linnworks locations`,
+            );
+          }
+
+          return {
+            SKU: item.itemSKU,
+            LocationId: locationId,
+            Level: Math.max(0, item.itemStocksCount), // Clamp negative levels to 0
+          };
+        },
+      );
+
+      await this.setStockLevels(stockLevels);
+
+      this.logger.log(
+        `✅  Successfully updated stock levels for ${stockUpdates.length} items`,
+      );
+    } catch (error) {
+      this.logger.error('Failed to update stock levels in Linnworks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set stock levels using Linnworks API
+   */
+  private async setStockLevels(
+    stockLevels: LinnworksStockLevelUpdate[],
+  ): Promise<any> {
+    return this.makeApiCall(async (headers) => {
+      const response = await firstValueFrom(
+        this.httpService
+          .post(
+            `${this.apiUrl}/Stock/SetStockLevel`,
+            { stockLevels },
+            { headers },
+          )
+          .pipe(
+            retry(this.maxRetries),
+            map((response) => response.data),
+            catchError((error) => {
+              const data = error.response?.data ?? error.message;
+              this.logger.error(
+                'Linnworks Stock API Error:',
+                typeof data === 'string' ? data : JSON.stringify(data),
+              );
+              throw error;
+            }),
+          ),
+      );
+      return response;
+    });
+  }
+
+  /**
+   * Update stock level for a single item by SKU
+   */
+  async updateSingleItemStock(
+    sku: string,
+    stockLevel: number,
+    warehouseName: string,
+  ): Promise<void> {
+    await this.updateStockLevels([
+      {
+        itemSKU: sku,
+        itemStocksCount: stockLevel,
+        warehouseName,
+      },
+    ]);
+  }
+
+  /**
+   * Fetch all stock locations from Linnworks Inventory/GetStockLocations
+   */
+  public async getStockLocations(): Promise<
+    {
+      StockLocationId: string;
+      LocationName: string;
+    }[]
+  > {
+    return this.makeApiCall(async (headers) => {
+      const response = await firstValueFrom(
+        this.httpService
+          .get(`${this.apiUrl}/Inventory/GetStockLocations`, { headers })
+          .pipe(
+            retry(this.maxRetries),
+            map((res) => {
+              const data = res.data;
+              return Array.isArray(data) ? data : [];
+            }),
+            catchError((error) => {
+              const data = error.response?.data ?? error.message;
+              this.logger.error(
+                'API Error:',
+                typeof data === 'string' ? data : JSON.stringify(data),
+              );
+              throw new HttpException(
+                `Linnworks API error: ${error.message}`,
+                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
+      return response;
+    });
   }
 
   /**

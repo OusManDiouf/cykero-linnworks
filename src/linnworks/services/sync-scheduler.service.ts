@@ -28,8 +28,9 @@ export class SyncSchedulerService {
       if (result.syncedOrders > 0) {
         this.logger.log(`✅  Synced ${result.syncedOrders} orders to Zoho`);
       }
-    } catch (error) {
-      this.logger.error('❌  Sync failed:', error);
+    } catch (e: unknown) {
+      const error = e as Error;
+      this.logger.error('❌  Sync failed:', error.message || 'Unknown error');
     } finally {
       this.isSyncing = false;
     }

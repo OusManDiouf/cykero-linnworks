@@ -129,4 +129,43 @@ export interface ZohoItem {
   status?: string;
   product_type?: string;
   tax_id: string;
+  warehouses: ZohoWarehouse[];
+}
+
+//STOCK UPDATE INTEGRATION TYPES
+export type ZohoWebhookResource =
+  | 'salesorder'
+  | 'purchasereceive'
+  | 'inventory_adjustment'
+  | 'vendor_credit'
+  | 'creditnote';
+
+export interface ZohoWebhookLineItem {
+  item_id: string;
+  sku: string;
+}
+
+export interface ZohoWebhookResourcePayload {
+  line_items: ZohoWebhookLineItem[];
+}
+export type ZohoWebhookPayload = Partial<
+  Record<ZohoWebhookResource, ZohoWebhookResourcePayload>
+>;
+
+export interface ZohoWarehouse {
+  warehouse_id: string;
+  warehouse_actual_available_for_sale_stock: number;
+  warehouse_name: string;
+}
+
+export interface StockUpdateItem {
+  itemSKU: string;
+  itemStocksCount: number;
+  warehouseName: string;
+}
+
+export interface LinnworksStockLevelUpdate {
+  SKU: string;
+  LocationId: string;
+  Level: number;
 }
