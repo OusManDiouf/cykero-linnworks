@@ -23,7 +23,7 @@ export class ZohoToLinnworksWebhookController {
   @HttpCode(HttpStatus.OK)
   async handleZohoWebhook(@Body() payload: ZohoWebhookPayload) {
     try {
-      this.logger.log('Received Zoho to Linnworks webhook');
+      this.logger.log('🪝  Received Zoho to Linnworks webhook');
       this.logger.debug('Webhook payload keys:', Object.keys(payload));
 
       // Basic payload validation
