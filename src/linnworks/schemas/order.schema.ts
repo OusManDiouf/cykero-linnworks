@@ -167,6 +167,10 @@ export class Order implements Omit<OrderShape, 'OrderId'> {
 
   @Prop({ default: 0 })
   syncRetries: number;
+
+  // === Mapping to Zoho (needed to resolve incoming webhooks) ===
+  @Prop({ type: String, index: true })
+  zohoSalesOrderId?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

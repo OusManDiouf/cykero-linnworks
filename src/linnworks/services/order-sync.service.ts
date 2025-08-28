@@ -155,6 +155,12 @@ export class OrderSyncService {
     const result = await this.booksApi.createSalesOrder(salesOrderPayload);
     // Small delay to avoid hammering Zoho API between dependent calls
     if (result.salesorder?.salesorder_id) {
+      // Persist mapping so webhooks can resolve the order
+      await this.orderRepository.setZohoSalesOrderId(
+        order._id,
+        result.salesorder.salesorder_id,
+      );
+
       await this.booksApi.markSaleOrderAsApproved(
         result.salesorder.salesorder_id,
       );
@@ -165,11 +171,6 @@ export class OrderSyncService {
         result.salesorder.salesorder_id,
       );
     }
-
-    // For now, just log to verify
-    this.logger.debug(JSON.stringify(salesOrderPayload, null, 2));
-
-    await this.sleep(500); // Simulate API call
   }
 
   private extractSku(item: Record<string, unknown>): string | undefined {

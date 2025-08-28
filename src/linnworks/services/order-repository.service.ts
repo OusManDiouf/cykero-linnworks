@@ -25,6 +25,23 @@ export class OrderRepositoryService {
     return this.orderModel.findById(id).exec();
   }
 
+  // Find by Zoho Sales Order ID (for incoming shipment webhooks)
+  async findByZohoSalesOrderId(
+    zohoSalesOrderId: string,
+  ): Promise<Order | null> {
+    return this.orderModel.findOne({ zohoSalesOrderId }).exec();
+  }
+
+  // Persist mapping when we create the remote Zoho sales order
+  async setZohoSalesOrderId(
+    orderId: string,
+    zohoSalesOrderId: string,
+  ): Promise<void> {
+    await this.orderModel
+      .updateOne({ _id: orderId }, { $set: { zohoSalesOrderId } })
+      .exec();
+  }
+
   async saveOrders(orders: OrderDto[]): Promise<void> {
     if (orders.length === 0) return;
 

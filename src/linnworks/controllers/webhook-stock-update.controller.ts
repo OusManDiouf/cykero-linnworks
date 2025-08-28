@@ -14,8 +14,8 @@ import { ZohoToLinnworksWebhookService } from '../services/webhook.service';
 import type { ZohoWebhookPayload } from '../../zoho-books/types/zoho-books-types';
 
 @Controller('webhooks/zoho-linnworks')
-export class ZohoToLinnworksWebhookController {
-  private readonly logger = new Logger(ZohoToLinnworksWebhookController.name);
+export class StockUpdateWebhookController {
+  private readonly logger = new Logger(StockUpdateWebhookController.name);
 
   constructor(private readonly webhookService: ZohoToLinnworksWebhookService) {}
 

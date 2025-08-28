@@ -405,10 +405,7 @@ export class ZohoBooksApiService {
     orderData: ZohoBooksSalesOrderRequest,
   ): Promise<ZohoBooksSalesOrderResponse> {
     try {
-      this.logger.debug(`ℹ️  Creating sales order in Zoho Books`, {
-        customer_id: orderData.customer_id,
-        items_count: orderData.line_items.length,
-      });
+      this.logger.debug(`🛠️   Creating sales order in Zoho Books`);
 
       const response = await firstValueFrom(
         this.httpService

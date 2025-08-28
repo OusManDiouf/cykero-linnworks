@@ -570,62 +570,39 @@ export class LinnworksApiService {
     });
   }
 
-  async setOrderShippingInfo(
-    req: SetOrderShippingInfoRequest,
-  ): Promise<{ TotalsInfo?: any; ShippingInfo?: any }> {
-    // Basic validation to avoid 400s
-    const uuidRegex =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
-    if (!req?.orderId || !uuidRegex.test(req.orderId)) {
+  async setOrderShippingInfo(params: {
+    orderId: string; // UUID
+    info: { TrackingNumber: string };
+  }): Promise<{ success: boolean }> {
+    const { orderId, info } = params;
+
+    if (!orderId) {
       throw new HttpException(
-        'setOrderShippingInfo requires a valid orderId (UUID).',
+        '❌  setOrderShippingInfo requires a valid orderId (UUID).',
         HttpStatus.BAD_REQUEST,
       );
     }
-    if (!req.info || typeof req.info !== 'object') {
+    if (!info?.TrackingNumber?.trim()) {
       throw new HttpException(
-        'setOrderShippingInfo requires an info object.',
+        '❌  setOrderShippingInfo requires a non-empty TrackingNumber.',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    // Build payload with only defined fields
-    const info: Record<string, unknown> = {};
-    if (req.info.PostalServiceId)
-      info.PostalServiceId = req.info.PostalServiceId;
-    if (typeof req.info.TotalWeight === 'number')
-      info.TotalWeight = req.info.TotalWeight;
-    if (typeof req.info.ItemWeight === 'number')
-      info.ItemWeight = req.info.ItemWeight;
-    if (typeof req.info.PostageCost === 'number')
-      info.PostageCost = req.info.PostageCost;
-    if (typeof req.info.TrackingNumber === 'string')
-      info.TrackingNumber = req.info.TrackingNumber; // will be corrected below
-    if (typeof req.info.ManualAdjust === 'boolean')
-      info.ManualAdjust = req.info.ManualAdjust;
-
-    // If no fields provided, fail fast
-    if (Object.keys(info).length === 0) {
-      throw new HttpException(
-        'setOrderShippingInfo.info must include at least one field (e.g., TrackingNumber).',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    const payload = {
+      info: { TrackingNumber: info.TrackingNumber.trim() },
+      orderId,
+    };
 
     return this.makeApiCall(async (headers) => {
-      const payload = {
-        orderId: req.orderId,
-        info,
-      };
-
-      return await firstValueFrom(
+      await firstValueFrom(
         this.httpService
           .post(`${this.apiUrl}/Orders/SetOrderShippingInfo`, payload, {
             headers,
           })
           .pipe(
             retry(this.maxRetries),
-            map((res) => res.data as { TotalsInfo?: any; ShippingInfo?: any }),
+            map((res) => res.data),
             catchError((error) => {
               const data = error.response?.data ?? error.message;
               this.logger.error(
@@ -639,6 +616,8 @@ export class LinnworksApiService {
             }),
           ),
       );
+
+      return { success: true };
     });
   }
 

@@ -13,7 +13,7 @@ import { OrderPollingService } from './services/order-polling.service';
 import { SyncSchedulerService } from './services/sync-scheduler.service';
 import { OrderSyncService } from './services/order-sync.service';
 import { ZohoBooksModule } from '../zoho-books/zoho-books.module';
-import { ZohoToLinnworksWebhookController } from './controllers/webhook.controller';
+import { StockUpdateWebhookController } from './controllers/webhook-stock-update.controller';
 import { ZohoToLinnworksWebhookService } from './services/webhook.service';
 import {
   CreditNoteWebhookStrategy,
@@ -22,6 +22,7 @@ import {
   SalesOrderWebhookStrategy,
   VendorCreditWebhookStrategy,
 } from './strategies/webhook-strategies';
+import { ShipmentWebhookController } from './controllers/webhook-shipment.controller';
 
 @Module({
   imports: [
@@ -34,7 +35,11 @@ import {
     MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
     ZohoBooksModule,
   ],
-  controllers: [LinnworksController, ZohoToLinnworksWebhookController],
+  controllers: [
+    LinnworksController,
+    StockUpdateWebhookController,
+    ShipmentWebhookController,
+  ],
   providers: [
     TokenManagerService,
     LinnworksApiService,
