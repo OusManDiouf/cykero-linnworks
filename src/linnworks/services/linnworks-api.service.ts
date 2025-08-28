@@ -4,7 +4,10 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom, map, retry } from 'rxjs';
 import { TokenManagerService } from './token-manager.service';
 import { OrderDto } from '../dto/order.dto';
-import { LinnworksStockLevelUpdate, StockUpdateItem, } from '../../zoho-books/types/zoho-books-types';
+import {
+  LinnworksStockLevelUpdate,
+  StockUpdateItem,
+} from '../../zoho-books/types/zoho-books-types';
 
 export interface DateFieldFilter {
   FieldCode?: string;
@@ -96,6 +99,14 @@ export interface ProcessOrderResponse {
   Processed: boolean;
 }
 
+// Soft error to indicate a SKU doesn’t exist in Linnworks (expected case)
+export class LinnworksSkuNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LinnworksSkuNotFoundError';
+  }
+}
+
 @Injectable()
 export class LinnworksApiService {
   private readonly logger = new Logger(LinnworksApiService.name);
@@ -168,7 +179,10 @@ export class LinnworksApiService {
         `✅  Successfully updated stock levels for ${stockUpdates.length} items`,
       );
     } catch (error) {
-      this.logger.error('Failed to update stock levels in Linnworks:', error);
+      this.logger.error(
+        'Failed to update stock levels in Linnworks:',
+        error.message,
+      );
       throw error;
     }
   }
@@ -192,6 +206,20 @@ export class LinnworksApiService {
             map((response) => response.data),
             catchError((error) => {
               const data = error.response?.data ?? error.message;
+
+              // Detect “SKU not found” soft failure from Linnworks
+              if (this.isSkuNotFoundErrorPayload(data)) {
+                const msg =
+                  typeof data === 'string'
+                    ? data
+                    : data?.Message || 'SKU not found in Linnworks';
+                // Keep it quiet at debug level – this is expected sometimes
+                this.logger.debug(`Linnworks Stock API: ${msg}`);
+                // Throw a soft error (no HttpException) so upstream can SKIP cleanly
+                throw new LinnworksSkuNotFoundError(msg);
+              }
+
+              // Real error – keep full error logging
               this.logger.error(
                 'Linnworks Stock API Error:',
                 typeof data === 'string' ? data : JSON.stringify(data),
@@ -202,6 +230,27 @@ export class LinnworksApiService {
       );
       return response;
     });
+  }
+
+  // Helper to detect the specific “no item found” structure/text from Linnworks
+  private isSkuNotFoundErrorPayload(payload: unknown): boolean {
+    if (!payload) return false;
+
+    // Payload is usually an object: { Code: '-', Message: 'No item found for the following SKUs: ...' }
+    if (typeof payload === 'object' && payload !== null) {
+      const msg = (payload as any).Message;
+      return (
+        typeof msg === 'string' &&
+        /No item found for the following SKUs/i.test(msg)
+      );
+    }
+
+    // Fallback: sometimes a string
+    if (typeof payload === 'string') {
+      return /No item found for the following SKUs/i.test(payload);
+    }
+
+    return false;
   }
 
   /**
@@ -706,6 +755,18 @@ export class LinnworksApiService {
   }
 
   private handleApiError(error: any, context: string): never {
+    const data = error?.response?.data;
+
+    // Treat “SKU not found” as soft error: no stack/noise
+    if (this.isSkuNotFoundErrorPayload(data)) {
+      const msg =
+        typeof data === 'string'
+          ? data
+          : data?.Message || 'SKU not found in Linnworks';
+      this.logger.debug(`Linnworks API (${context}): ${msg}`);
+      throw new LinnworksSkuNotFoundError(msg);
+    }
+
     this.logger.error(
       `Linnworks API Error in ${context}:`,
       error.response?.data || error.message,

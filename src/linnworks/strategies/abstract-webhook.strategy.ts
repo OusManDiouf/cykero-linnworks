@@ -93,9 +93,7 @@ export abstract class AbstractWebhookStrategy
         );
       } catch (error) {
         failedUpdates.push(item.itemSKU);
-        this.logger.warn(
-          `⚠️ SKIPPED SKU: ${item.itemSKU}. REASON: ${(error as Error).message}`,
-        );
+        this.logger.warn(`⚠️  ${(error as Error).message}`);
       }
     }
 
