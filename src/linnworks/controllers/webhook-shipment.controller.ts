@@ -81,19 +81,44 @@ export class ShipmentWebhookController {
       throw new Error('No tracking number provided');
     }
 
+    // 1) Set tracking number on Linnworks
+    await this.linnworksApi.setOrderShippingInfo({
+      orderId: order._id,
+      info: { TrackingNumber: tracking },
+    });
+
+    // 2) Mark order as processed in Linnworks (only after tracking is set)
+    const locationId =
+      order.FulfilmentLocationId || '00000000-0000-0000-0000-000000000000'; // safe fallback
+
     try {
-      await this.linnworksApi.setOrderShippingInfo({
-        orderId: order._id, // Mongo _id is the Linnworks OrderId (UUID)
-        info: { TrackingNumber: tracking },
+      const result = await this.linnworksApi.processOrder({
+        orderId: order._id,
+        locationId,
+        scanPerformed: true,
       });
 
-      return { message: 'Order Shipped' };
-    } catch (err) {
-      this.logger.error(
-        `Error updating Linnworks shipping info: ${String(err)}`,
+      // reflect locally
+      if (result?.Processed) {
+        await this.orderRepo.markOrderAsProcessed(order._id);
+      }
+      this.logger.log(
+        `✅ Order ${order._id} processed in Linnworks (Processed=${result?.Processed})`,
       );
-      throw err;
+    } catch (err: unknown) {
+      // If processing fails, we still succeeded setting tracking; surface a clear error
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Failed to process order ${order._id} after setting tracking: ${message}`,
+      );
+      throw new InternalServerErrorException({
+        message: '⚠️  Tracking set, but order processing failed',
+        error: message,
+        timestamp: new Date().toISOString(),
+      });
     }
+
+    return { message: 'Order Shipped' };
   }
 
   @Post('shipment/test')

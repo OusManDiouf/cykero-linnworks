@@ -4,10 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom, map, retry } from 'rxjs';
 import { TokenManagerService } from './token-manager.service';
 import { OrderDto } from '../dto/order.dto';
-import {
-  LinnworksStockLevelUpdate,
-  StockUpdateItem,
-} from '../../zoho-books/types/zoho-books-types';
+import { LinnworksStockLevelUpdate, StockUpdateItem, } from '../../zoho-books/types/zoho-books-types';
 
 export interface DateFieldFilter {
   FieldCode?: string;
@@ -92,9 +89,6 @@ export interface ProcessOrderRequest {
   orderId: string; // uuid
   scanPerformed: boolean; // optional, defaults false by API if omitted
   locationId: string; // uuid (user location)
-  context?: {
-    Module?: string;
-  };
 }
 
 export interface ProcessOrderResponse {
@@ -514,10 +508,7 @@ export class LinnworksApiService {
   }
 
   async processOrder(req: ProcessOrderRequest): Promise<ProcessOrderResponse> {
-    const uuidRegex =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
-
-    if (!req?.orderId || !uuidRegex.test(req.orderId)) {
+    if (!req?.orderId) {
       throw new HttpException(
         'processOrder requires a valid orderId (UUID).',
         HttpStatus.BAD_REQUEST,
@@ -534,18 +525,8 @@ export class LinnworksApiService {
     const payload: Record<string, unknown> = {
       orderId: req.orderId,
     };
-    if (typeof req.scanPerformed === 'boolean') {
-      payload.scanPerformed = req.scanPerformed;
-    }
-    if (typeof req.locationId === 'string') {
-      payload.locationId = req.locationId;
-    }
-    if (req.context && typeof req.context === 'object') {
-      const ctx: Record<string, unknown> = {};
-      if (typeof req.context.Module === 'string')
-        ctx.Module = req.context.Module;
-      if (Object.keys(ctx).length > 0) payload.context = ctx;
-    }
+    payload.scanPerformed = req.scanPerformed;
+    payload.locationId = req.locationId;
 
     return this.makeApiCall(async (headers) => {
       return await firstValueFrom(

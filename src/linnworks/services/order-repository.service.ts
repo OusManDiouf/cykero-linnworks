@@ -101,6 +101,13 @@ export class OrderRepositoryService {
       .exec();
   }
 
+  //  Reflect processed state locally
+  async markOrderAsProcessed(orderId: string): Promise<void> {
+    await this.orderModel
+      .updateOne({ _id: orderId }, { $set: { Processed: true } })
+      .exec();
+  }
+
   async findOrdersByStatus(syncStatus: string): Promise<Order[]> {
     return this.orderModel
       .find({ syncStatus })
