@@ -69,8 +69,20 @@ export class ZohoToLinnworksWebhookService {
         '✅  All Zoho to Linnworks webhooks processed successfully',
       );
       return 'Zoho to Linnworks webhooks handled successfully';
-    } catch (error) {
-      this.logger.error('❌ Failed to process some webhooks:', error);
+    } catch (error: any) {
+      const status = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : '';
+      const url = error?.config?.url ? ` ${error.config.url}` : '';
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.Message ||
+        error?.message ||
+        String(error);
+
+      this.logger.error(
+        `❌ Failed to process some webhooks: ${status}${url ? ' - ' + url : ''} - ${msg}`,
+      );
       throw error;
     }
   }

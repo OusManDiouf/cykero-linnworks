@@ -40,8 +40,20 @@ export class OrderPollingService implements OnModuleInit {
       } else {
         this.logger.debug('🔍️  Poll completed: no orders saved');
       }
-    } catch (error) {
-      this.logger.error('❌  Poll failed:', error);
+    } catch (error: any) {
+      const status = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : '';
+      const url = error?.config?.url ? ` ${error.config.url}` : '';
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.Message ||
+        error?.message ||
+        String(error);
+
+      this.logger.error(
+        `❌  Poll failed: ${status}${url ? ' - ' + url : ''} - ${msg}`,
+      );
     } finally {
       this.isPolling = false;
     }

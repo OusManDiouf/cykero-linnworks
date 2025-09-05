@@ -39,8 +39,20 @@ export class StockUpdateWebhookController {
         message: result,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      this.logger.error('Error processing Zoho to Linnworks webhook:', error);
+    } catch (error: any) {
+      const status = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : '';
+      const url = error?.config?.url ? ` ${error.config.url}` : '';
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.Message ||
+        error?.message ||
+        String(error);
+
+      this.logger.error(
+        `Error processing Zoho to Linnworks webhook: ${status}${url ? ' - ' + url : ''} - ${msg}`,
+      );
 
       if (error instanceof BadRequestException) {
         throw error;
@@ -84,8 +96,20 @@ export class StockUpdateWebhookController {
         message: `Test completed: ${result}`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      this.logger.error('Test webhook failed:', error);
+    } catch (error: any) {
+      const status = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : '';
+      const url = error?.config?.url ? ` ${error.config.url}` : '';
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.Message ||
+        error?.message ||
+        String(error);
+
+      this.logger.error(
+        `Test webhook failed: ${status}${url ? ' - ' + url : ''} - ${msg}`,
+      );
       throw new InternalServerErrorException({
         message: 'Test webhook failed',
         error: error.message,
