@@ -30,6 +30,13 @@ export class OrderProcessorService {
       order.CustomerInfo?.Address?.EmailAddress?.trim()
     );
 
+    console.log({
+      hasItems,
+      hasValue,
+      hasRealStatus,
+      hasCustomerInfo,
+    });
+
     return hasItems && hasValue && hasRealStatus && hasCustomerInfo;
   }
 
