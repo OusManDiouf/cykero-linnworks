@@ -42,7 +42,11 @@ jobs:
             # Ensure pnpm via corepack
             corepack enable
             corepack prepare pnpm@latest --activate
+            
+            pm2 stop linnworks-app
 
             # Build and restart
             pnpm install --frozen-lockfile
             pnpm build
+            
+            pm2 restart linnworks-app --update-env

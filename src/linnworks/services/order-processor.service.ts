@@ -16,10 +16,7 @@ export class OrderProcessorService {
    * Check if order is ready for processing (not empty/draft)
    */
   private isOrderReady(order: OrderDto): boolean {
-    const hasItems =
-      order.GeneralInfo?.NumItems > 0 &&
-      Array.isArray(order.Items) &&
-      order.Items.length > 0;
+    const hasItems = Array.isArray(order.Items) && order.Items.length > 0;
 
     const hasValue = order.TotalsInfo?.TotalCharge > 0;
 
@@ -29,13 +26,6 @@ export class OrderProcessorService {
       order.CustomerInfo?.Address?.FullName?.trim() ||
       order.CustomerInfo?.Address?.EmailAddress?.trim()
     );
-
-    console.log({
-      hasItems,
-      hasValue,
-      hasRealStatus,
-      hasCustomerInfo,
-    });
 
     return hasItems && hasValue && hasRealStatus && hasCustomerInfo;
   }
