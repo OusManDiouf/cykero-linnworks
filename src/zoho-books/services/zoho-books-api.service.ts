@@ -81,46 +81,71 @@ export class ZohoBooksApiService {
   public async getAllItemDetails(itemIds: string[]): Promise<ZohoItem[]> {
     if (itemIds.length === 0) return [];
 
-    console.log({
-      itemIds,
-    });
+    // Sanitize: trim, remove empty/falsy, deduplicate
+    const cleanIds = Array.from(
+      new Set(
+        itemIds
+          .map((id) => (id ?? '').toString().trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
+
+    if (cleanIds.length === 0) {
+      this.logger.warn(
+        '⚠️  getAllItemDetails called with only empty/invalid itemIds',
+      );
+      return [];
+    }
+
+    // Batch requests to avoid overly long URLs or API-side limits
+    const BATCH_SIZE = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < cleanIds.length; i += BATCH_SIZE) {
+      batches.push(cleanIds.slice(i, i + BATCH_SIZE));
+    }
 
     try {
       const accessToken = await this.zohoAuthService.getAccessToken();
-      const url = new URL(`${this.ZOHO_BOOK_API}/itemdetails`);
 
-      url.searchParams.append('organization_id', this.ORGANIZATION_ID);
-      url.searchParams.append('item_ids', itemIds.join(','));
+      const allItems: ZohoItem[] = [];
+      for (const batch of batches) {
+        const url = new URL(`${this.ZOHO_BOOK_API}/itemdetails`);
+        url.searchParams.append('organization_id', this.ORGANIZATION_ID);
+        url.searchParams.append('item_ids', batch.join(','));
 
-      const response = await firstValueFrom(
-        this.httpService.get(url.toString(), {
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
+        const response = await firstValueFrom(
+          this.httpService.get(url.toString(), {
+            headers: {
+              Authorization: `Zoho-oauthtoken ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
 
-      const items = response.data.items as ZohoItem[];
+        const items = (response.data.items as ZohoItem[]) ?? [];
+        allItems.push(
+          ...items.map((item) => ({
+            item_id: item.item_id,
+            name: item.name,
+            tax_id: item.tax_id,
+            sku: item.sku,
+            rate: item.rate,
+            status: item.status,
+            warehouses: (item.warehouses ?? []).map((wh) => ({
+              warehouse_id: wh.warehouse_id,
+              warehouse_name: wh.warehouse_name,
+              warehouse_actual_available_for_sale_stock:
+                wh.warehouse_actual_available_for_sale_stock,
+            })),
+          })),
+        );
+      }
 
-      return items.map((item) => ({
-        item_id: item.item_id,
-        name: item.name,
-        tax_id: item.tax_id,
-        sku: item.sku,
-        rate: item.rate,
-        status: item.status,
-        warehouses: item.warehouses.map((wh) => ({
-          warehouse_id: wh.warehouse_id,
-          warehouse_name: wh.warehouse_name,
-          warehouse_actual_available_for_sale_stock:
-            wh.warehouse_actual_available_for_sale_stock,
-        })),
-      }));
-    } catch (error) {
+      return allItems;
+    } catch (error: any) {
       this.logger.error(
-        'Failed to fetch item details from Zoho:',
-        error.message,
+        '❌ Failed to fetch item details from Zoho:',
+        error?.response?.data || error?.message,
       );
       throw error;
     }
