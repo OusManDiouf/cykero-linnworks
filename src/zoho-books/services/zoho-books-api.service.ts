@@ -81,6 +81,10 @@ export class ZohoBooksApiService {
   public async getAllItemDetails(itemIds: string[]): Promise<ZohoItem[]> {
     if (itemIds.length === 0) return [];
 
+    console.log({
+      itemIds,
+    });
+
     try {
       const accessToken = await this.zohoAuthService.getAccessToken();
       const url = new URL(`${this.ZOHO_BOOK_API}/itemdetails`);
@@ -114,7 +118,10 @@ export class ZohoBooksApiService {
         })),
       }));
     } catch (error) {
-      this.logger.error('Failed to fetch item details from Zoho:', error);
+      this.logger.error(
+        'Failed to fetch item details from Zoho:',
+        error.message,
+      );
       throw error;
     }
   }
