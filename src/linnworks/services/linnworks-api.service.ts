@@ -179,9 +179,16 @@ export class LinnworksApiService {
         `✅  Successfully updated stock levels for ${stockUpdates.length} items`,
       );
     } catch (error) {
+      // Treat “SKU not found” as soft: don't pollute logs, and don't throw
+      if (error instanceof LinnworksSkuNotFoundError) {
+        this.logger.debug(
+          `SKU(s) not found while updating stock levels. Skipping. Reason: ${error.message}`,
+        );
+        return;
+      }
       this.logger.error(
         'Failed to update stock levels in Linnworks:',
-        error.message,
+        (error as Error).message,
       );
       throw error;
     }

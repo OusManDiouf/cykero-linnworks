@@ -11,6 +11,7 @@ import {
   ZohoWebhookPayload,
   ZohoWebhookResource,
 } from '../../zoho-books/types/zoho-books-types';
+import { LinnworksSkuNotFoundError } from './linnworks-api.service';
 
 @Injectable()
 export class ZohoToLinnworksWebhookService {
@@ -70,6 +71,14 @@ export class ZohoToLinnworksWebhookService {
       );
       return 'Zoho to Linnworks webhooks handled successfully';
     } catch (error: any) {
+      // Soft-skip when the only problem is "SKU not found"
+      if (error instanceof LinnworksSkuNotFoundError) {
+        this.logger.debug(
+          `ℹ️  Soft-skip Zoho→Linnworks webhook: ${error.message}`,
+        );
+        return 'Zoho to Linnworks webhooks handled successfully (soft skip)';
+      }
+
       const status = error?.response?.status
         ? `HTTP ${error.response.status}`
         : '';
