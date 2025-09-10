@@ -138,6 +138,187 @@ export class LinnworksApiService {
   }
 
   /**
+   * This is the more commonly used and reliable endpoint for fetching inventory
+   *
+   * Note: The fetch error when there is no more page to fetch
+   *
+   * Here is the returned error:
+   *    {
+   *       status: 400,
+   *       message: 'No items found with given filter.',
+   *       endpoint: 'GetStockItemsFull'
+   *     }
+   */
+  public async getStockItemsFull(params: {
+    pageNumber: number;
+    entriesPerPage: number;
+    keyword?: string;
+    loadCompositeParents?: boolean;
+    loadVariationParents?: boolean;
+  }): Promise<any> {
+    const {
+      pageNumber = 1,
+      entriesPerPage = 100,
+      keyword = '',
+      loadCompositeParents = false,
+      loadVariationParents = false,
+    } = params;
+
+    return this.makeApiCall(async (headers) => {
+      const payload = {
+        keyword: keyword,
+        pageNumber,
+        entriesPerPage,
+        loadCompositeParents,
+        loadVariationParents,
+        // DataRequirements: 0=Basic, 1=Images, 2=Descriptions, 3=ChannelPrices, etc.
+        dataRequirements: ['StockLevels'],
+        // SearchTypes: 0=SKU, 1=Title, 2=Barcode
+        searchTypes: ['SKU'],
+      };
+
+      return await firstValueFrom(
+        this.httpService
+          .post(`${this.apiUrl}/Stock/GetStockItemsFull`, payload, {
+            headers,
+          })
+          .pipe(
+            retry(this.maxRetries),
+            map((res) => {
+              const data = res.data;
+              return {
+                items: Array.isArray(data) ? data : [],
+                totalItems: Array.isArray(data) ? data.length : 0,
+                pageNumber,
+                entriesPerPage,
+              };
+            }),
+            catchError((error) => {
+              const status = error?.response?.status;
+              const message =
+                error?.response?.data?.Message ||
+                error?.response?.data ||
+                error?.message ||
+                '';
+
+              // Graceful pagination end: treat 400 "No items found with given filter." as empty page
+              if (
+                status === 400 &&
+                typeof message === 'string' &&
+                message
+                  .toLowerCase()
+                  .includes('no items found with given filter')
+              ) {
+                this.logger.debug(
+                  `GetStockItemsFull exhausted at page ${pageNumber}. Returning empty page.`,
+                );
+                return [
+                  {
+                    items: [],
+                    totalItems: 0,
+                    pageNumber,
+                    entriesPerPage,
+                  },
+                ];
+              }
+
+              // Otherwise, propagate as HttpException (will be handled by makeApiCall)
+              this.logger.error('Linnworks API Error:', {
+                status,
+                message,
+                endpoint: 'GetStockItemsFull',
+              });
+
+              throw new HttpException(
+                `Linnworks API error: ${message}`,
+                status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+            // unwrap the array returned in a graceful path above
+            map((result) => (Array.isArray(result) ? result[0] : result)),
+          ),
+      );
+    });
+  }
+
+  /**
+   * Helper method to fetch all inventory items with pagination
+   * This handles multiple pages automatically
+   */
+  public async getAllInventoryItems(batchSize: number = 200): Promise<any[]> {
+    const allItems: any[] = [];
+    let pageNumber = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      try {
+        const response = await this.getStockItemsFull({
+          pageNumber,
+          entriesPerPage: batchSize,
+        });
+
+        if (response.items && response.items.length > 0) {
+          allItems.push(...response.items);
+          pageNumber++;
+
+          // If we got less items than requested, we've reached the end
+          if (response.items.length < batchSize) {
+            hasMorePages = false;
+          }
+        } else {
+          hasMorePages = false;
+        }
+      } catch (error) {
+        // If we get a 400 error, it might mean we've reached the end of pages
+        if (error.status === 400 && pageNumber > 1) {
+          hasMorePages = false;
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return allItems;
+  }
+
+  /**
+   * Get inventory items count
+   *
+   * Useful to know total items before pagination
+   */
+  public async getInventoryItemsCount(): Promise<number> {
+    return this.makeApiCall(async (headers) => {
+      return await firstValueFrom(
+        this.httpService
+          .get(`${this.apiUrl}/Inventory/GetInventoryItemsCount`, {
+            headers,
+          })
+          .pipe(
+            retry(this.maxRetries),
+            map((res) => res.data || 0),
+            catchError((error) => {
+              const errorMessage =
+                error.response?.data?.Message ||
+                error.response?.data ||
+                error.message;
+
+              this.logger.error('Linnworks API Error:', {
+                status: error.response?.status,
+                message: errorMessage,
+                endpoint: 'GetInventoryItemsCount',
+              });
+
+              throw new HttpException(
+                `Linnworks API error: ${errorMessage}`,
+                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
+    });
+  }
+
+  /**
    * Update stock levels in Linnworks for multiple items
    */
   async updateStockLevels(stockUpdates: StockUpdateItem[]): Promise<void> {
@@ -310,6 +491,52 @@ export class LinnworksApiService {
           ),
       );
       return response;
+    });
+  }
+
+  /**
+   * Fetch a page of inventory items to enumerate SKUs for Zoho lookups.
+   * Adjust the endpoint/payload if your LW API flavor differs.
+   */
+  public async getInventoryItemsPage(params: {
+    pageNumber: number;
+    entriesPerPage: number;
+  }): Promise<Array<{ SKU: string }>> {
+    const { pageNumber, entriesPerPage } = params;
+
+    return this.makeApiCall(async (headers) => {
+      const payload = {
+        pageNumber,
+        entriesPerPage,
+        // Add filters if needed later (e.g., SearchTerm, LocationId, etc.)
+      };
+
+      return await firstValueFrom(
+        this.httpService
+          .post(`${this.apiUrl}/Inventory/GetInventoryItems`, payload, {
+            headers,
+          })
+          .pipe(
+            retry(this.maxRetries),
+            map((res) => {
+              const data = res.data;
+              if (!Array.isArray(data)) return [];
+              // Ensure at least SKU is extracted; LW returns many fields
+              return data.map((x: any) => ({ SKU: String(x?.SKU || '') }));
+            }),
+            catchError((error) => {
+              const data = error.response?.data ?? error.message;
+              this.logger.error(
+                'API Error:',
+                typeof data === 'string' ? data : JSON.stringify(data),
+              );
+              throw new HttpException(
+                `Linnworks API error: ${error.message}`,
+                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+              );
+            }),
+          ),
+      );
     });
   }
 

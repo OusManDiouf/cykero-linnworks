@@ -7,6 +7,7 @@ import { SyncSchedulerService } from '../services/sync-scheduler.service';
 import { OrderTransformer } from '../../zoho-books/transformers/order.transformer';
 import { ZohoBooksCustomerService } from '../../zoho-books/services/zoho-books-customer.service';
 import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
+import { InventorySyncService } from '../services/inventory-sync.service';
 
 @Controller('linnworks')
 export class LinnworksController {
@@ -20,7 +21,15 @@ export class LinnworksController {
     private readonly orderTransformer: OrderTransformer,
     private readonly zohoBooksCustomerService: ZohoBooksCustomerService,
     private readonly booksApiService: ZohoBooksApiService,
+    private readonly inventorySync: InventorySyncService,
   ) {}
+
+  @Post('inventory/sync')
+  @HttpCode(HttpStatus.ACCEPTED)
+  triggerInventorySync() {
+    const { started, message } = this.inventorySync.startManualSync();
+    return { success: started, message };
+  }
 
   @Post('poll')
   @HttpCode(HttpStatus.OK)

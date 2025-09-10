@@ -23,6 +23,7 @@ import {
   VendorCreditWebhookStrategy,
 } from './strategies/webhook-strategies';
 import { ShipmentWebhookController } from './controllers/webhook-shipment.controller';
+import { InventorySyncService } from './services/inventory-sync.service';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ShipmentWebhookController } from './controllers/webhook-shipment.contro
     InventoryAdjustmentWebhookStrategy,
     VendorCreditWebhookStrategy,
     CreditNoteWebhookStrategy,
+    InventorySyncService,
   ],
   exports: [
     TokenManagerService,
