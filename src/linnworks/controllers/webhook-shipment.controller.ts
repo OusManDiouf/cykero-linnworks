@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { OrderRepositoryService } from '../services/order-repository.service';
 import { LinnworksApiService } from '../services/linnworks-api.service';
+import { LocationService } from '../services/location.service';
 
 interface ZohoSalesOrderLineItem {
   sku: string;
@@ -39,6 +40,7 @@ export class ShipmentWebhookController {
   constructor(
     private readonly orderRepo: OrderRepositoryService,
     private readonly linnworksApi: LinnworksApiService,
+    private readonly locationService: LocationService,
   ) {}
 
   /**
@@ -88,8 +90,7 @@ export class ShipmentWebhookController {
     });
 
     // 2) Mark order as processed in Linnworks (only after tracking is set)
-    const locationId =
-      order.FulfilmentLocationId || '00000000-0000-0000-0000-000000000000'; // safe fallback
+    const locationId = this.locationService.getOrderLinnworksLocationId(order);
 
     try {
       const result = await this.linnworksApi.processOrder({

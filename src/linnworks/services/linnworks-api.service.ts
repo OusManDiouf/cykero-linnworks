@@ -543,10 +543,12 @@ export class LinnworksApiService {
   /**
    * Get all open order IDs (no pagination limit)
    */
-  public async getAllOpenOrderIds(): Promise<string[]> {
+  public async getAllOpenOrderIds(config: {
+    fulfilmentCenter: string;
+  }): Promise<string[]> {
     return this.makeApiCall(async (headers) => {
       const payload = {
-        fulfilmentCenter: '00000000-0000-0000-0000-000000000000',
+        fulfilmentCenter: config.fulfilmentCenter,
       };
 
       const response = await firstValueFrom(

@@ -24,6 +24,7 @@ import {
 } from './strategies/webhook-strategies';
 import { ShipmentWebhookController } from './controllers/webhook-shipment.controller';
 import { InventorySyncService } from './services/inventory-sync.service';
+import { LocationService } from './services/location.service';
 
 @Module({
   imports: [
@@ -57,7 +58,9 @@ import { InventorySyncService } from './services/inventory-sync.service';
     InventoryAdjustmentWebhookStrategy,
     VendorCreditWebhookStrategy,
     CreditNoteWebhookStrategy,
+
     InventorySyncService,
+    LocationService,
   ],
   exports: [
     TokenManagerService,

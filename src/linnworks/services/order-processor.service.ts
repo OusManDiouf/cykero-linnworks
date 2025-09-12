@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LinnworksApiService } from './linnworks-api.service';
 import { OrderRepositoryService } from './order-repository.service';
 import { OrderDto } from '../dto/order.dto';
+import { LocationService } from './location.service';
 
 @Injectable()
 export class OrderProcessorService {
@@ -10,6 +11,7 @@ export class OrderProcessorService {
   constructor(
     private readonly linnworksApi: LinnworksApiService,
     private readonly orderRepository: OrderRepositoryService,
+    private readonly locationService: LocationService,
   ) {}
 
   /**
@@ -41,8 +43,12 @@ export class OrderProcessorService {
     savedOrders: number;
   }> {
     try {
-      // Step 1: Fetch open order ids from linnworks
-      const openOrderIds = await this.linnworksApi.getAllOpenOrderIds();
+      // Step 1: Fetch open order ids for the specific fulfilment center (location)
+      const fulfilmentCenter =
+        this.locationService.getDefaultLinnworksLocationId();
+      const openOrderIds = await this.linnworksApi.getAllOpenOrderIds({
+        fulfilmentCenter,
+      });
       this.logger.debug(
         `🔍️  Found ${openOrderIds.length} open orders from Linnworks`,
       );
