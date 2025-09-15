@@ -472,9 +472,10 @@ export class ZohoBooksApiService {
    * Mark a sales order as confirmed.
    * POST /salesorders/{salesorder_id}/status/confirm
    */
-  public async markSaleOrderAsConfirmed(
-    salesorderId: string,
-  ): Promise<ZohoBooksSalesOrderResponse> {
+  public async markSaleOrderAsConfirmed(salesorderId: string): Promise<{
+    code: number;
+    message: string;
+  }> {
     try {
       const url = `${this.ZOHO_BOOK_API}/salesorders/${salesorderId}/status/confirmed`;
 
@@ -503,9 +504,7 @@ export class ZohoBooksApiService {
           ),
       );
 
-      this.logger.log(
-        `✅  Sales order confirmed: ${response.data.salesorder?.salesorder_number || salesorderId}`,
-      );
+      this.logger.log(`✅  Sales order confirmed: ${salesorderId}`);
       return response.data as ZohoBooksSalesOrderResponse;
     } catch (error) {
       this.logger.error('Error confirming Zoho sales order:', {
@@ -520,9 +519,10 @@ export class ZohoBooksApiService {
    * Mark a sales order as approved.
    * POST /salesorders/{salesorder_id}/status/approve
    */
-  public async markSaleOrderAsApproved(
-    salesorderId: string,
-  ): Promise<ZohoBooksSalesOrderResponse> {
+  public async markSaleOrderAsApproved(salesorderId: string): Promise<{
+    code: number;
+    message: string;
+  }> {
     try {
       const url = `${this.ZOHO_BOOK_API}/salesorders/${salesorderId}/approve`;
 
@@ -551,9 +551,54 @@ export class ZohoBooksApiService {
           ),
       );
 
-      this.logger.log(
-        `✅  Sales order approved: ${response.data.salesorder?.salesorder_number || salesorderId}`,
+      this.logger.log(`✅  Sales order approved: ${salesorderId}`);
+      return response.data as ZohoBooksSalesOrderResponse;
+    } catch (error) {
+      this.logger.error('Error approving Zoho sales order:', {
+        salesorderId,
+        error,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a sales order as tobesipped.
+   * POST /salesorders/{salesorder_id}/status/approve
+   */
+  public async markSaleOrderAsToBeShipped(salesorderId: string): Promise<{
+    code: number;
+    message: string;
+  }> {
+    try {
+      const url = `${this.ZOHO_BOOK_API}/salesorders/${salesorderId}/substatus/cs_tobeshi`;
+
+      const response = await firstValueFrom(
+        this.httpService
+          .post(
+            url,
+            {},
+            {
+              params: { organization_id: this.ORGANIZATION_ID },
+              headers: {
+                Authorization: `Zoho-oauthtoken ${await this.getAccessToken()}`,
+                'Content-Type': 'application/json',
+              },
+            },
+          )
+          .pipe(
+            catchError((error) => {
+              this.logger.error('Failed to approve Zoho sales order', {
+                salesorderId,
+                error: error.response?.data || error.message,
+                status: error.response?.status,
+              });
+              throw error;
+            }),
+          ),
       );
+
+      this.logger.log(`✅  Sales order maked as tobe shipped: ${salesorderId}`);
       return response.data as ZohoBooksSalesOrderResponse;
     } catch (error) {
       this.logger.error('Error approving Zoho sales order:', {

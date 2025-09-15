@@ -184,7 +184,12 @@ export class OrderTransformer {
   }
 
   private buildReferenceNumber(order: OrderDto): string {
-    // Use Linnworks order ID as reference
+    if (order.GeneralInfo?.ExternalReferenceNum) {
+      return `Refurbed-${order.GeneralInfo.ExternalReferenceNum}`;
+    } else if (order.GeneralInfo?.ReferenceNum) {
+      return `Refurbed-${order.GeneralInfo.ReferenceNum}`;
+    }
+    // Fallback to Linnworks order number if no external reference
     return `LW-${order.NumOrderId}`;
   }
 

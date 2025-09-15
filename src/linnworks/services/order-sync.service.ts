@@ -85,7 +85,6 @@ export class OrderSyncService {
   }
 
   private async syncOrderToZoho(order: Order): Promise<void> {
-    // TODO: Implement Zoho sync logic here
     this.logger.debug(`🛠️  Syncing order ${order._id} to Zoho`);
 
     // 1) Ensure customer exists (no side-effects in transformer)
@@ -165,9 +164,15 @@ export class OrderSyncService {
         result.salesorder.salesorder_id,
       );
 
-      await this.sleep(500);
+      await this.sleep(1000);
 
       await this.booksApi.markSaleOrderAsConfirmed(
+        result.salesorder.salesorder_id,
+      );
+
+      await this.sleep(1000);
+
+      await this.booksApi.markSaleOrderAsToBeShipped(
         result.salesorder.salesorder_id,
       );
     }
