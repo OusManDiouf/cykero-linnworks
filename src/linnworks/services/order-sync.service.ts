@@ -112,7 +112,7 @@ export class OrderSyncService {
       quantity: number;
       rate: number;
       bcy_rate: number;
-      warehouse_id: string;
+      location_id: string;
       tax_id: string;
     }[] = [];
 
@@ -141,7 +141,7 @@ export class OrderSyncService {
         quantity,
         rate,
         bcy_rate: rate,
-        warehouse_id: this.GMBH_WAREHOUSE_ID,
+        location_id: this.GMBH_WAREHOUSE_ID,
         tax_id: zohoItemDetail?.tax_id,
       });
     }

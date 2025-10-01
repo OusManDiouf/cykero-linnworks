@@ -17,7 +17,7 @@ export abstract class AbstractWebhookStrategy
   private readonly SAS_WAREHOUSE_ID = '347732000000070865';
 
   protected readonly resourceType: ZohoWebhookResource;
-  protected readonly targetWarehouses = [
+  protected readonly targetLocations = [
     this.GMBH_WAREHOUSE_ID,
     this.SAS_WAREHOUSE_ID,
   ];
@@ -47,7 +47,7 @@ export abstract class AbstractWebhookStrategy
     let stockUpdateItems: {
       itemSKU: string;
       itemStocksCount: number;
-      warehouseName: string;
+      locationName: string;
     }[] = [];
 
     try {
@@ -57,10 +57,10 @@ export abstract class AbstractWebhookStrategy
       // Fetch detailed item information from Zoho
       const itemDetails = await this.zohoService.getAllItemDetails(itemIds);
 
-      // Calculate stock levels by warehouse
-      stockUpdateItems = this.zohoService.getStocksItemByWarehouse(
+      // Calculate stock levels by location
+      stockUpdateItems = this.zohoService.getStocksItemByLocation(
         itemDetails,
-        this.targetWarehouses,
+        this.targetLocations,
       );
 
       this.logger.debug(
@@ -84,7 +84,7 @@ export abstract class AbstractWebhookStrategy
         await this.linnworksApiService.updateSingleItemStock(
           item.itemSKU,
           item.itemStocksCount,
-          item.warehouseName,
+          item.locationName,
         );
 
         successfulUpdates.push(item.itemSKU);

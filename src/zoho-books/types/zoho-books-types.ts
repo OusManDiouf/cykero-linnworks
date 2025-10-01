@@ -1,19 +1,19 @@
-export interface Warehouse {
-  warehouse_id: string;
-  warehouse_name: string;
-  warehouse_available_stock: number;
-  warehouse_actual_available_stock: number;
-  warehouse_committed_stock: number;
-  warehouse_actual_committed_stock: number;
-  warehouse_available_for_sale_stock: number;
-  warehouse_actual_available_for_sale_stock: number;
-  warehouse_quantity_in_transit: number;
+export interface Location {
+  location_id: string;
+  location_name: string;
+  location_available_stock: number;
+  location_actual_available_stock: number;
+  location_committed_stock: number;
+  location_actual_committed_stock: number;
+  location_available_for_sale_stock: number;
+  location_actual_available_for_sale_stock: number;
+  location_quantity_in_transit: number;
 }
 export interface ZohoBookItem {
   item_id: string;
   name: string;
   sku: string;
-  warehouses: Warehouse[];
+  locations: Location[];
 }
 export interface ZohoBookItemResponse {
   code: number;
@@ -129,7 +129,7 @@ export interface ZohoItem {
   status?: string;
   product_type?: string;
   tax_id: string;
-  warehouses: ZohoWarehouse[];
+  locations: ZohoLocation[];
 }
 
 //STOCK UPDATE INTEGRATION TYPES
@@ -152,16 +152,16 @@ export type ZohoWebhookPayload = Partial<
   Record<ZohoWebhookResource, ZohoWebhookResourcePayload>
 >;
 
-export interface ZohoWarehouse {
-  warehouse_id: string;
-  warehouse_actual_available_for_sale_stock: number;
-  warehouse_name: string;
+export interface ZohoLocation {
+  location_id: string;
+  location_actual_available_for_sale_stock: number;
+  location_name: string;
 }
 
 export interface StockUpdateItem {
   itemSKU: string;
   itemStocksCount: number;
-  warehouseName: string;
+  locationName: string;
 }
 
 export interface LinnworksStockLevelUpdate {

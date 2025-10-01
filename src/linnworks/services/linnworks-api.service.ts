@@ -337,12 +337,12 @@ export class LinnworksApiService {
       // Convert to Linnworks format with the correct LocationId per item
       const stockLevels: LinnworksStockLevelUpdate[] = stockUpdates.map(
         (item) => {
-          const key = (item.warehouseName || '').toLowerCase();
+          const key = (item.locationName || '').toLowerCase();
           const locationId = nameToId.get(key);
 
           if (!locationId) {
             throw new Error(
-              `Warehouse "${item.warehouseName}" not found in Linnworks locations`,
+              `Location "${item.locationName}" not found in Linnworks locations`,
             );
           }
 
@@ -447,13 +447,13 @@ export class LinnworksApiService {
   async updateSingleItemStock(
     sku: string,
     stockLevel: number,
-    warehouseName: string,
+    locationName: string,
   ): Promise<void> {
     await this.updateStockLevels([
       {
         itemSKU: sku,
         itemStocksCount: stockLevel,
-        warehouseName,
+        locationName,
       },
     ]);
   }

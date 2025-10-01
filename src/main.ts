@@ -40,5 +40,14 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 5000, '0.0.0.0');
   console.log(`Application is running on: ${await app.getUrl()}`);
+
+  /* TODO: LOG ROTATE THE PRODUCTION LOGS FILES
+      ➜  ~ ll /var/www/html/linnworks.cykero.eu/logs/
+        total 98M
+        -rw-r--r-- 1 debian debian 8,7M 17 sept. 07:31 app.err-5.log
+        -rw-r--r-- 1 debian debian  89M 17 sept. 07:34 app.out-5.log
+        ➜  ~
+  *
+  * */
 }
 void bootstrap();

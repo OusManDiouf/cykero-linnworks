@@ -3,9 +3,9 @@ import { ZohoAuthService } from './zoho-auth.service';
 import { ConfigService } from '@nestjs/config';
 import {
   CreateZohoCustomerParams,
+  Location,
   SearchZohoContactResult,
   StockUpdateItem,
-  Warehouse,
   ZohoBookItem,
   ZohoBookItemResponse,
   ZohoBookItemsResponse,
@@ -131,11 +131,11 @@ export class ZohoBooksApiService {
             sku: item.sku,
             rate: item.rate,
             status: item.status,
-            warehouses: (item.warehouses ?? []).map((wh) => ({
-              warehouse_id: wh.warehouse_id,
-              warehouse_name: wh.warehouse_name,
-              warehouse_actual_available_for_sale_stock:
-                wh.warehouse_actual_available_for_sale_stock,
+            locations: (item.locations ?? []).map((wh) => ({
+              location_id: wh.location_id,
+              location_name: wh.location_name,
+              location_actual_available_for_sale_stock:
+                wh.location_actual_available_for_sale_stock,
             })),
           })),
         );
@@ -152,11 +152,11 @@ export class ZohoBooksApiService {
   }
 
   // /**
-  //  * Calculate stock levels by warehouse from Zoho items
+  //  * Calculate stock levels by location from Zoho items
   //  */
-  // public getAggregateStocksItemByWarehouses(
+  // public getAggregateStocksItemByLocations(
   //   items: ZohoItem[],
-  //   targetWarehouses: string[] = [this.GMBH_WAREHOUSE_ID],
+  //   targetLocations: string[] = [this.GMBH_WAREHOUSE_ID],
   // ): StockUpdateItem[] {
   //   return items
   //     .filter(
@@ -164,29 +164,29 @@ export class ZohoBooksApiService {
   //         typeof item.sku === 'string' && item.sku.length > 0,
   //     )
   //     .map((item) => {
-  //       const totalStock = item.warehouses
-  //         .filter((warehouse) =>
-  //           targetWarehouses.includes(warehouse.warehouse_id),
+  //       const totalStock = item.locations
+  //         .filter((location) =>
+  //           targetLocations.includes(location.location_id),
   //         )
-  //         .reduce((total, warehouse) => {
-  //           return total + warehouse.warehouse_actual_available_for_sale_stock;
+  //         .reduce((total, location) => {
+  //           return total + location.location_actual_available_for_sale_stock;
   //         }, 0);
   //
   //       return {
   //         itemSKU: item.sku,
   //         itemStocksCount: totalStock,
-  //         warehouseName: wa
+  //         locationName: wa
   //       };
   //     });
   // }
 
   /**
-   * Calculate stock levels by warehouse from Zoho items
-   * Returns one entry per target warehouse (no summing)
+   * Calculate stock levels by location from Zoho items
+   * Returns one entry per target location (no summing)
    */
-  public getStocksItemByWarehouse(
+  public getStocksItemByLocation(
     items: ZohoItem[],
-    targetWarehouses: string[] = [this.GMBH_WAREHOUSE_ID],
+    targetLocations: string[] = [this.GMBH_WAREHOUSE_ID],
   ): StockUpdateItem[] {
     return items
       .filter(
@@ -194,16 +194,16 @@ export class ZohoBooksApiService {
           typeof item.sku === 'string' && item.sku.length > 0,
       )
       .flatMap((item) => {
-        const matchedWarehouses = item.warehouses.filter((warehouse) =>
-          targetWarehouses.includes(warehouse.warehouse_id),
+        const matchedLocations = item.locations.filter((location) =>
+          targetLocations.includes(location.location_id),
         );
 
-        return matchedWarehouses.map((warehouse) => ({
+        return matchedLocations.map((location) => ({
           itemSKU: item.sku,
-          itemStocksCount: warehouse.warehouse_actual_available_for_sale_stock,
-          warehouseName: warehouse.warehouse_name,
-          // If needed later and the type allows, you can include the warehouse ID:
-          // warehouseId: warehouse.warehouse_id,
+          itemStocksCount: location.location_actual_available_for_sale_stock,
+          locationName: location.location_name,
+          // If needed later and the type allows, you can include the location ID:
+          // locationId: location.location_id,
         }));
       });
   }
@@ -247,7 +247,6 @@ export class ZohoBooksApiService {
     const url = `${this.ZOHO_BOOK_API}/items/${encodeURIComponent(
       itemId,
     )}?organization_id=${this.ORGANIZATION_ID}`;
-    347732000051243498;
     const data = await firstValueFrom(
       this.httpService
         .get(url, {
@@ -627,9 +626,9 @@ export class ZohoBooksApiService {
     return item;
   }
 
-  public async fetchZohoWarehouseStocks(
+  public async fetchZohoLocationStocks(
     items: ZohoBookItem[],
-  ): Promise<{ item_id: string; sku: string; warehouseStock: number }[]> {
+  ): Promise<{ item_id: string; sku: string; locationStock: number }[]> {
     const marginalAndFunctionalItems = this.keepOnlyMarginalAndFunctionalItems(
       items.map((item) => ({
         item_id: item.item_id,
@@ -638,7 +637,7 @@ export class ZohoBooksApiService {
     );
 
     const stockPromises = marginalAndFunctionalItems.map((item) =>
-      this.getItemWarehouseStockFromZoho(item),
+      this.getItemLocationStockFromZoho(item),
     );
 
     return Promise.all(stockPromises);
@@ -650,29 +649,29 @@ export class ZohoBooksApiService {
     return zohoBookItems.filter((item) => item.sku.endsWith('/M/1'));
   }
 
-  private async getItemWarehouseStockFromZoho(item: {
+  private async getItemLocationStockFromZoho(item: {
     item_id: string;
     sku: string;
-  }): Promise<{ item_id: string; sku: string; warehouseStock: number }> {
+  }): Promise<{ item_id: string; sku: string; locationStock: number }> {
     const itemDetails = await this.getItemDetails(item.item_id);
-    const warehouseStock = this.calculateTotalAvailableStock(
-      itemDetails.warehouses,
+    const locationStock = this.calculateTotalAvailableStock(
+      itemDetails.locations,
     );
 
     return {
       item_id: item.item_id,
       sku: item.sku,
-      warehouseStock,
+      locationStock,
     };
   }
 
-  private calculateTotalAvailableStock(warehouses: Warehouse[]) {
-    return warehouses.reduce((reducedWarehouseStock, warehouse) => {
-      if (warehouse.warehouse_id === this.GMBH_WAREHOUSE_ID) {
-        reducedWarehouseStock +=
-          warehouse.warehouse_actual_available_for_sale_stock;
+  private calculateTotalAvailableStock(locations: Location[]) {
+    return locations.reduce((reducedLocationStock, location: Location) => {
+      if (location.location_id === this.GMBH_WAREHOUSE_ID) {
+        reducedLocationStock +=
+          location.location_actual_available_for_sale_stock;
       }
-      return reducedWarehouseStock;
+      return reducedLocationStock;
     }, 0);
   }
 

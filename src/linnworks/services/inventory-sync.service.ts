@@ -5,13 +5,13 @@ import { LinnworksApiService } from './linnworks-api.service';
 import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
 import {
   ZohoItem,
-  ZohoWarehouse,
+  ZohoLocation,
 } from '../../zoho-books/types/zoho-books-types';
 
 type StockUpdateItem = {
   itemSKU: string;
   itemStocksCount: number;
-  warehouseName: string;
+  locationName: string;
 };
 
 // Narrow type to what we need from GetStockItemsFull items
@@ -58,7 +58,7 @@ interface GetStockItemsFullResponse {
 export class InventorySyncService {
   private readonly logger = new Logger(InventorySyncService.name);
 
-  // Zoho Warehouse IDs to keep
+  // Zoho Location IDs to keep
   private readonly GMBH_WAREHOUSE_ID = '347732000000070863';
   private readonly SAS_WAREHOUSE_ID = '347732000000070865';
 
@@ -137,21 +137,21 @@ export class InventorySyncService {
           continue;
         }
 
-        // Build updates from the two warehouses of interest
+        // Build updates from the two locations of interest
         const updates: StockUpdateItem[] = [];
         for (const d of details) {
           const sku = d?.sku?.trim();
           if (!sku) continue;
 
-          const warehouses: ZohoWarehouse[] = Array.isArray(d.warehouses)
-            ? d.warehouses
+          const locations: ZohoLocation[] = Array.isArray(d.locations)
+            ? d.locations
             : [];
 
-          const gmbh = warehouses.find(
-            (w) => w.warehouse_id === this.GMBH_WAREHOUSE_ID,
+          const gmbh = locations.find(
+            (w) => w.location_id === this.GMBH_WAREHOUSE_ID,
           );
-          const sas = warehouses.find(
-            (w) => w.warehouse_id === this.SAS_WAREHOUSE_ID,
+          const sas = locations.find(
+            (w) => w.location_id === this.SAS_WAREHOUSE_ID,
           );
 
           if (gmbh) {
@@ -160,9 +160,9 @@ export class InventorySyncService {
               itemStocksCount:
                 Math.max(
                   0,
-                  Number(gmbh.warehouse_actual_available_for_sale_stock ?? 0),
+                  Number(gmbh.location_actual_available_for_sale_stock ?? 0),
                 ) || 0,
-              warehouseName: this.GMBH_LOCATION_NAME,
+              locationName: this.GMBH_LOCATION_NAME,
             });
           }
           if (sas) {
@@ -171,9 +171,9 @@ export class InventorySyncService {
               itemStocksCount:
                 Math.max(
                   0,
-                  Number(sas.warehouse_actual_available_for_sale_stock ?? 0),
+                  Number(sas.location_actual_available_for_sale_stock ?? 0),
                 ) || 0,
-              warehouseName: this.SAS_LOCATION_NAME,
+              locationName: this.SAS_LOCATION_NAME,
             });
           }
         }

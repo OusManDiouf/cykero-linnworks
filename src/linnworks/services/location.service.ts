@@ -20,9 +20,9 @@ export class LocationService {
     );
   }
 
-  // Map Linnworks Location GUID -> Zoho warehouse_id
+  // Map Linnworks Location GUID -> Zoho location_id
   // Configure as: ZOHO_WAREHOUSE_BY_LOCATION="linnGuid1:zohoId1,linnGuid2:zohoId2"
-  mapLinnworksToZohoWarehouseId(
+  mapLinnworksToZohoLocationId(
     linnworksLocationId?: string,
   ): string | undefined {
     const mapping = (process.env.ZOHO_WAREHOUSE_BY_LOCATION || '')
