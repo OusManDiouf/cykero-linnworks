@@ -435,37 +435,31 @@ export class ZohoBooksApiService {
   async createSalesOrder(
     orderData: ZohoBooksSalesOrderRequest,
   ): Promise<ZohoBooksSalesOrderResponse> {
-    try {
-      this.logger.debug(`🛠️   Creating sales order in Zoho Books`);
+    this.logger.debug(`🛠️   Creating sales order in Zoho Books`);
 
-      const response = await firstValueFrom(
-        this.httpService
-          .post(`${this.ZOHO_BOOK_API}/salesorders`, orderData, {
-            params: { organization_id: this.ORGANIZATION_ID },
-            headers: {
-              Authorization: `Zoho-oauthtoken ${await this.getAccessToken()}`,
-              'Content-Type': 'application/json',
-            },
-          })
-          .pipe(
-            catchError((error) => {
-              this.logger.error('Failed to create Zoho sales order', {
-                error: error.response?.data || error.message,
-                status: error.response?.status,
-              });
-              throw error;
-            }),
-          ),
-      );
-
-      this.logger.log(
-        `✅ Sales order created successfully: ${response.data.salesorder?.salesorder_number}`,
-      );
-      return response.data;
-    } catch (error) {
-      this.logger.error('Error creating Zoho sales order:', error);
-      throw error;
-    }
+    const response = await firstValueFrom(
+      this.httpService
+        .post(`${this.ZOHO_BOOK_API}/salesorders`, orderData, {
+          params: { organization_id: this.ORGANIZATION_ID },
+          headers: {
+            Authorization: `Zoho-oauthtoken ${await this.getAccessToken()}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        .pipe(
+          catchError((error) => {
+            this.logger.error('Failed to create Zoho sales order', {
+              error: error.response?.data || error.message,
+              status: error.response?.status,
+            });
+            throw error;
+          }),
+        ),
+    );
+    this.logger.log(
+      `✅ Sales order created successfully: ${response.data.salesorder?.salesorder_number}`,
+    );
+    return response.data as ZohoBooksSalesOrderResponse;
   }
   /**
    * Mark a sales order as confirmed.
