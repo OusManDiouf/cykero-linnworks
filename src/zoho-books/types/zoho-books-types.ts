@@ -43,6 +43,7 @@ export interface ZohoBooksSalesOrderRequest {
   shipping_charge?: number;
   bcy_shipping_charge?: number;
   is_inclusive_tax: boolean;
+  location_id?: string;
 }
 
 export interface ZohoLineItem {

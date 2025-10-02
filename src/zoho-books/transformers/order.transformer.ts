@@ -10,6 +10,7 @@ import { OrderDto } from '../../linnworks/dto/order.dto';
 @Injectable()
 export class OrderTransformer {
   private readonly logger = new Logger(OrderTransformer.name);
+  private readonly ZOHO_HEAD_OFFICE_LOCATION_ID = '347732000045149841';
 
   /**
    * Transform Linnworks order to Zoho Books sales order format
@@ -35,6 +36,7 @@ export class OrderTransformer {
       // shipping_address: this.transformAddress(order.CustomerInfo?.Address),
       notes: this.buildOrderNotes(order),
       is_inclusive_tax: true,
+      location_id: this.ZOHO_HEAD_OFFICE_LOCATION_ID,
     };
 
     // Add shipping charges if present
