@@ -330,15 +330,19 @@ export class LinnworksApiService {
     try {
       // Resolve all locations at once, then map by name (case-insensitive)
       const locations = await this.getStockLocations();
-      const nameToId = new Map<string, string>(
+      const nameToIdMap = new Map<string, string>(
         locations.map((l) => [l.LocationName.toLowerCase(), l.StockLocationId]),
       );
+      console.log('==========locationMap');
+      console.log(JSON.stringify(nameToIdMap, null, 2));
+      console.log('==========stockUpdates');
+      console.log(JSON.stringify(stockUpdates, null, 2));
 
       // Convert to Linnworks format with the correct LocationId per item
       const stockLevels: LinnworksStockLevelUpdate[] = stockUpdates.map(
         (item) => {
           const key = (item.locationName || '').toLowerCase();
-          const locationId = nameToId.get(key);
+          const locationId = nameToIdMap.get(key);
 
           if (!locationId) {
             throw new Error(
