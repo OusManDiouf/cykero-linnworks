@@ -62,9 +62,9 @@ export class InventorySyncService {
   private readonly GMBH_WAREHOUSE_ID = '347732000000070863';
   private readonly SAS_WAREHOUSE_ID = '347732000000070865';
 
-  // Linnworks location names that must match your LW locations
-  private readonly GMBH_LOCATION_NAME = 'Cykero GmbH';
-  private readonly SAS_LOCATION_NAME = 'Cykero SAS';
+  // Linnworks location names that must match your LW locations (⚠️ All lowercase !)
+  private readonly GMBH_LOCATION_NAME = 'cykero gmbh';
+  private readonly SAS_LOCATION_NAME = 'cykero sas';
 
   private readonly limiter: Bottleneck;
   private isRunning = false;

@@ -25,6 +25,11 @@ import {
 import { ShipmentWebhookController } from './controllers/webhook-shipment.controller';
 import { InventorySyncService } from './services/inventory-sync.service';
 import { LocationService } from './services/location.service';
+import {
+  LocationMapping,
+  LocationMappingSchema,
+} from './schemas/location-mapping.schema';
+import { LocationMappingService } from './services/location-mapping.service';
 
 @Module({
   imports: [
@@ -34,7 +39,10 @@ import { LocationService } from './services/location.service';
       maxRedirects: 3,
     }),
     ScheduleModule.forRoot(),
-    MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
+    MongooseModule.forFeature([
+      { name: Order.name, schema: OrderSchema },
+      { name: LocationMapping.name, schema: LocationMappingSchema },
+    ]),
     ZohoBooksModule,
   ],
   controllers: [
@@ -61,6 +69,7 @@ import { LocationService } from './services/location.service';
 
     InventorySyncService,
     LocationService,
+    LocationMappingService,
   ],
   exports: [
     TokenManagerService,
