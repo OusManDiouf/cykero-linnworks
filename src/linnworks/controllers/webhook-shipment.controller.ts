@@ -28,9 +28,11 @@ interface ZohoPkg {
 }
 
 interface ZohoSalesOrderWithPkgPayload {
-  salesorder_id: string;
-  line_items: ZohoSalesOrderLineItem[];
-  packages: ZohoPkg[];
+  salesorder: {
+    salesorder_id: string;
+    line_items: ZohoSalesOrderLineItem[];
+    packages: ZohoPkg[];
+  };
 }
 
 @Controller('webhooks/zoho-linnworks')
@@ -53,17 +55,17 @@ export class ShipmentWebhookController {
   async handleZohoShipment(
     @Body() payload: ZohoSalesOrderWithPkgPayload,
   ): Promise<{ message: string }> {
-    if (!payload?.salesorder_id) {
+    if (!payload?.salesorder.salesorder_id) {
       return { message: 'Missing salesorder_id' };
     }
 
     const order = await this.orderRepo.findByZohoSalesOrderId(
-      payload.salesorder_id,
+      payload.salesorder.salesorder_id,
     );
 
     if (!order) {
       this.logger.warn(
-        `ℹ️  Skipped (Unknown to the system): salesorder_id=${payload.salesorder_id}`,
+        `ℹ️  Skipped (Unknown to the system): salesorder_id=${payload.salesorder.salesorder_id}`,
       );
       // 204 like original behavior for "not processable"
       return { message: 'Salesorder not found' };
@@ -73,12 +75,12 @@ export class ShipmentWebhookController {
       `🛠️ ZOHO WEBHOOK → updating Linnworks shipment for order ${order._id}`,
     );
 
-    const foundPkg = payload.packages?.[0];
+    const foundPkg = payload.salesorder.packages?.[0];
     const tracking = foundPkg?.shipment_order?.tracking_number?.trim();
 
     if (!tracking) {
       this.logger.warn(
-        `⚠️ No tracking number provided for salesorder_id=${payload.salesorder_id}`,
+        `⚠️ No tracking number provided for salesorder_id=${payload.salesorder.salesorder_id}`,
       );
       throw new Error('No tracking number provided');
     }
@@ -120,51 +122,5 @@ export class ShipmentWebhookController {
     }
 
     return { message: 'Order Shipped' };
-  }
-
-  @Post('shipment/test')
-  @HttpCode(HttpStatus.OK)
-  async testZohoShipmentWebhook() {
-    this.logger.log('Test shipment endpoint called');
-
-    // Sample test payload - adjust with a real salesorder_id (should match local order)
-    // and tracking for local testing.
-    const testPayload: ZohoSalesOrderWithPkgPayload = {
-      salesorder_id: '347732000051232331',
-      line_items: [
-        {
-          sku: 'SM/TE/IPH/15+/512GB/GREE/C/ANY/R/1',
-          quantity: 2,
-        },
-      ],
-      packages: [
-        {
-          package_id: 'pkg-1',
-          shipment_id: 'shp-1',
-          shipment_order: {
-            shipment_date: new Date().toISOString(),
-            shipment_date_formatted: new Date().toISOString(),
-            tracking_number: 'TR0002TEST',
-          },
-        },
-      ],
-    };
-
-    try {
-      const result = await this.handleZohoShipment(testPayload);
-      return {
-        success: true,
-        message: `Test completed: ${result.message}`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error('Test shipment webhook failed:', message);
-      throw new InternalServerErrorException({
-        message: 'Test shipment webhook failed',
-        error: message,
-        timestamp: new Date().toISOString(),
-      });
-    }
   }
 }
