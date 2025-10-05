@@ -79,11 +79,15 @@ tasks:
       - task: docker-up
 
   # Setup tasks
-  install:
+  build-app:
     desc: Install dependencies
     cmds:
-      - pnpm install
+      - docker compose -p ${COMPOSE_PROJECT_NAME} exec app pnpm run build 2>/dev/null || true
 
+  install-app:
+    desc: Install dependencies
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} exec app pnpm install -f 2>/dev/null || true
   setup:
     desc: Initial setup - install deps and start dependencies
     cmds:

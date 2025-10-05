@@ -455,10 +455,11 @@ export class LinnworksApiService {
     locationName: string,
     zohoLocationId: string,
   ): Promise<void> {
+    const safeLevel = Math.max(0, Number(stockLevel) || 0);
     await this.updateStockLevels([
       {
         itemSKU: sku,
-        itemStocksCount: stockLevel,
+        itemStocksCount: safeLevel,
         locationName,
         zohoLocationId,
       },
