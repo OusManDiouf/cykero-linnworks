@@ -24,8 +24,6 @@ export class StockUpdateWebhookController {
   async handleZohoWebhook(@Body() payload: ZohoWebhookPayload) {
     try {
       this.logger.log('🪝  Received Zoho to Linnworks webhook');
-      this.logger.debug('Webhook payload keys:', Object.keys(payload));
-
       // Basic payload validation
       if (!payload || typeof payload !== 'object') {
         throw new BadRequestException('Invalid webhook payload');
