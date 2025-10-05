@@ -92,8 +92,9 @@ export abstract class AbstractWebhookStrategy
         );
 
         successfulUpdates.push(item.itemSKU);
+        const safeLevel = Math.max(0, item.itemStocksCount);
         this.logger.debug(
-          `✅ Updated stock for SKU: ${item.itemSKU} to level: ${item.itemStocksCount}`,
+          `✅ Updated stock for SKU: ${item.itemSKU} to level: ${safeLevel} in ${item.locationName}`,
         );
       } catch (error) {
         failedUpdates.push(item.itemSKU);
