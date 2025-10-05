@@ -3,7 +3,7 @@ module.exports = {
   apps: [
     {
       name: 'linnworks-app',
-      script: './dist/main.js',
+      script: 'dist/main.js',
       instances: 1, // keep 1 due to scheduled jobs
       exec_mode: 'fork',
       watch: false,
