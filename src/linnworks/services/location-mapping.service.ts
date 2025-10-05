@@ -30,6 +30,9 @@ export class LocationMappingService {
     linnworksLocationId: string;
     linnworksLocationName: string;
   }) {
+    this.logger.debug(
+      `Upserting mapping ${mapping.zohoLocationId} -> ${mapping.linnworksLocationId}`,
+    );
     await this.model
       .updateOne(
         { zohoLocationId: mapping.zohoLocationId },

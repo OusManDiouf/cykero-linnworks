@@ -30,6 +30,7 @@ import {
   LocationMappingSchema,
 } from './schemas/location-mapping.schema';
 import { LocationMappingService } from './services/location-mapping.service';
+import { LocationMappingController } from './controllers/location-mapping.controller';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { LocationMappingService } from './services/location-mapping.service';
     LinnworksController,
     StockUpdateWebhookController,
     ShipmentWebhookController,
+    LocationMappingController,
   ],
   providers: [
     TokenManagerService,
