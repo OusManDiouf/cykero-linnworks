@@ -43,10 +43,19 @@ jobs:
             corepack enable
             corepack prepare pnpm@latest --activate
             
+            # Clean previous outputs to avoid partial builds
+            rm -rf dist tsconfig.build.tsbuildinfo
+            
             pm2 stop linnworks-app
 
             # Build and restart
             pnpm install --frozen-lockfile
             pnpm run build
             
-            pm2 restart linnworks-app --update-env
+            # Verify build artifact
+            test -f dist/main.js || { echo "dist/main.js missing — build failed"; exit 1; }
+            
+            # Start/Restart from correct cwd
+            pm2 delete linnworks-app || true
+            pm2 start ecosystem.config.cjs
+            pm2 save
