@@ -1,8 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ZohoWebhookResource } from '../../zoho-books/types/zoho-books-types';
-import { ZohoWebhookPayload } from '../../zoho-books/types/zoho-books-types';
+import {
+  StockUpdateItem,
+  ZohoWebhookPayload,
+} from '../../zoho-books/types/zoho-books-types';
+
 import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
-import { LinnworksApiService } from '../services/linnworks-api.service';
+import {
+  LinnworksApiService,
+  LinnworksSkuNotFoundError,
+} from '../services/linnworks-api.service';
 
 export interface ZohoToLinnworksStrategy {
   execute(payload: ZohoWebhookPayload): Promise<void>;
@@ -44,11 +51,7 @@ export abstract class AbstractWebhookStrategy
       `>>>>>> ${this.resourceType.toUpperCase()} WEBHOOK STRATEGY EXECUTED - Processing ${line_items.length} items`,
     );
 
-    let stockUpdateItems: {
-      itemSKU: string;
-      itemStocksCount: number;
-      locationName: string;
-    }[] = [];
+    let stockUpdateItems: StockUpdateItem[] = [];
 
     try {
       // Get item IDs from line items
@@ -85,6 +88,7 @@ export abstract class AbstractWebhookStrategy
           item.itemSKU,
           item.itemStocksCount,
           item.locationName,
+          item.zohoLocationId,
         );
 
         successfulUpdates.push(item.itemSKU);
@@ -93,10 +97,16 @@ export abstract class AbstractWebhookStrategy
         );
       } catch (error) {
         failedUpdates.push(item.itemSKU);
-        this.logger.warn(`⚠️  ${(error as Error).message}`);
+        // Downgrade noise: log at debug when it's only "SKU not found"
+        if (error instanceof LinnworksSkuNotFoundError) {
+          this.logger.debug(`ℹ️  ${error.message} (SKU=${item.itemSKU})`);
+        } else {
+          this.logger.warn(`⚠️  ${(error as Error).message}`);
+        }
       }
     }
 
+    // Single concise summary per webhook resource
     this.logger.log(
       `${this.resourceType.toUpperCase()} processing complete: ${successfulUpdates.length} successful, ${failedUpdates.length} failed`,
     );

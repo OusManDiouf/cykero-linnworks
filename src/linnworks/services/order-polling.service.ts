@@ -20,7 +20,7 @@ export class OrderPollingService implements OnModuleInit {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async scheduledPoll(): Promise<void> {
     if (this.isPolling) {
-      this.logger.debug('🔂  Poll already in progress, skipping');
+      //this.logger.debug('🔂  Poll already in progress, skipping');
       return;
     }
 

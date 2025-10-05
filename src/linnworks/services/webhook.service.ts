@@ -72,7 +72,9 @@ export class ZohoToLinnworksWebhookService {
       return 'Zoho to Linnworks webhooks handled successfully';
     } catch (error: any) {
       // Soft-skip when the only problem is "SKU not found"
+      // Soft-skip when the only problem is "SKU not found"
       if (error instanceof LinnworksSkuNotFoundError) {
+        // Use debug to avoid console noise in production
         this.logger.debug(
           `ℹ️  Soft-skip Zoho→Linnworks webhook: ${error.message}`,
         );

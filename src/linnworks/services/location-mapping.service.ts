@@ -1,9 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  LocationMapping,
-  LocationMappingDocument,
-} from '../schemas/location-mapping.schema';
+import { LocationMapping } from '../schemas/location-mapping.schema';
 import { Model } from 'mongoose';
 import { LinnworksApiService } from './linnworks-api.service';
 import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
@@ -14,7 +11,7 @@ export class LocationMappingService {
 
   constructor(
     @InjectModel(LocationMapping.name)
-    private readonly model: Model<LocationMappingDocument>,
+    private readonly model: Model<LocationMapping>,
     @Inject(forwardRef(() => LinnworksApiService))
     private readonly linnworksApi: LinnworksApiService,
     private readonly zohoApi: ZohoBooksApiService,
@@ -33,13 +30,27 @@ export class LocationMappingService {
     this.logger.debug(
       `Upserting mapping ${mapping.zohoLocationId} -> ${mapping.linnworksLocationId}`,
     );
-    await this.model
-      .updateOne(
-        { zohoLocationId: mapping.zohoLocationId },
-        { $set: mapping },
-        { upsert: true },
-      )
-      .exec();
+
+    try {
+      const res = await this.model
+        .updateOne(
+          { zohoLocationId: mapping.zohoLocationId },
+          { $set: mapping },
+          { upsert: true },
+        )
+        .exec();
+
+      this.logger.debug(
+        `Upsert result: matched=${res.matchedCount} modified=${res.modifiedCount} upsertedId=${(res as any).upsertedId}`,
+      );
+      return res;
+    } catch (err: any) {
+      this.logger.error('LocationMapping upsert failed', {
+        message: err?.message,
+        code: err?.code,
+      });
+      throw err;
+    }
   }
 
   /**

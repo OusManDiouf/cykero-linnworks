@@ -368,7 +368,7 @@ export class LinnworksApiService {
     } catch (error) {
       if (error instanceof LinnworksSkuNotFoundError) {
         this.logger.debug(
-          `SKU(s) not found while updating stock levels. Skipping. Reason: ${error.message}`,
+          `ℹ️  Skipped ${stockUpdates.length} stock update(s): ${error.message}`,
         );
         return;
       }
@@ -411,11 +411,12 @@ export class LinnworksApiService {
                 throw new LinnworksSkuNotFoundError(msg);
               }
 
-              // Real error – keep full error logging
-              this.logger.error(
-                'Linnworks Stock API Error:',
-                typeof data === 'string' ? data : JSON.stringify(data),
-              );
+              // Real error – concise error message, avoid dumping large payloads
+              const compact =
+                typeof data === 'string'
+                  ? data
+                  : data?.Message || JSON.stringify(data).slice(0, 500);
+              this.logger.error(`Linnworks Stock API Error: ${compact}`);
               throw error;
             }),
           ),
@@ -452,12 +453,14 @@ export class LinnworksApiService {
     sku: string,
     stockLevel: number,
     locationName: string,
+    zohoLocationId: string,
   ): Promise<void> {
     await this.updateStockLevels([
       {
         itemSKU: sku,
         itemStocksCount: stockLevel,
         locationName,
+        zohoLocationId,
       },
     ]);
   }
@@ -1007,19 +1010,25 @@ export class LinnworksApiService {
       throw new LinnworksSkuNotFoundError(msg);
     }
 
-    this.logger.error(
-      `Linnworks API Error in ${context}:`,
-      error.response?.data || error.message,
-    );
+    const status = error.response?.status;
+    // const compact =
+    //   typeof data === 'string'
+    //     ? data
+    //     : data?.Message || JSON.stringify(data)?.slice(0, 500);
+    //
+    // this.logger.error(
+    //   `Linnworks API Error in ${context}:`,
+    //   error.response?.data || error.message,
+    // );
 
-    if (error.response?.status === 401) {
+    if (status === 401) {
       throw new HttpException(
         'Linnworks API authentication failed',
         HttpStatus.UNAUTHORIZED,
       );
     }
 
-    if (error.response?.status === 429) {
+    if (status === 429) {
       throw new HttpException(
         'Linnworks API rate limit exceeded',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -1028,7 +1037,7 @@ export class LinnworksApiService {
 
     throw new HttpException(
       `Linnworks API error: ${error.message}`,
-      error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      status || HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
 }

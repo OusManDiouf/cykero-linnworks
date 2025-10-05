@@ -4,15 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { LinnworksApiService } from './linnworks-api.service';
 import { ZohoBooksApiService } from '../../zoho-books/services/zoho-books-api.service';
 import {
+  StockUpdateItem,
   ZohoItem,
   ZohoLocation,
 } from '../../zoho-books/types/zoho-books-types';
-
-type StockUpdateItem = {
-  itemSKU: string;
-  itemStocksCount: number;
-  locationName: string;
-};
 
 // Narrow type to what we need from GetStockItemsFull items
 export interface LwStockItemFull {
@@ -163,6 +158,7 @@ export class InventorySyncService {
                   Number(gmbh.location_actual_available_for_sale_stock ?? 0),
                 ) || 0,
               locationName: this.GMBH_LOCATION_NAME,
+              zohoLocationId: gmbh.location_id,
             });
           }
           if (sas) {
@@ -174,6 +170,7 @@ export class InventorySyncService {
                   Number(sas.location_actual_available_for_sale_stock ?? 0),
                 ) || 0,
               locationName: this.SAS_LOCATION_NAME,
+              zohoLocationId: sas.location_id,
             });
           }
         }

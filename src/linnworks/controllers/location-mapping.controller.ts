@@ -41,6 +41,7 @@ export class LocationMappingController {
       };
     }
     await this.mapping.upsert(body);
-    return { ok: true };
+    const confirm = await this.mapping.getByZohoId(body.zohoLocationId);
+    return { ok: true, confirm };
   }
 }
