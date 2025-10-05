@@ -47,6 +47,6 @@ jobs:
 
             # Build and restart
             pnpm install --frozen-lockfile
-            pnpm build
+            pnpm run build
             
             pm2 restart linnworks-app --update-env
