@@ -2,6 +2,7 @@
 module.exports = {
   apps: [
     {
+      cw: '/var/www/html/linnworks.cykero.eu',
       name: 'linnworks-app',
       script: 'dist/src/main.js',
       instances: 1, // keep 1 due to scheduled jobs
