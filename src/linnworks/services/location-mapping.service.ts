@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   LocationMapping,
@@ -15,6 +15,7 @@ export class LocationMappingService {
   constructor(
     @InjectModel(LocationMapping.name)
     private readonly model: Model<LocationMappingDocument>,
+    @Inject(forwardRef(() => LinnworksApiService))
     private readonly linnworksApi: LinnworksApiService,
     private readonly zohoApi: ZohoBooksApiService,
   ) {}
@@ -40,7 +41,7 @@ export class LocationMappingService {
 
   /**
    * Resolve Linnworks LocationId from Zoho location (id + name for sanity).
-   * Throws with actionable message if not mapped yet.
+   * Throws with an actionable message if not mapped yet.
    */
   async resolveLinnworksLocationId(params: {
     zohoLocationId?: string;
@@ -100,9 +101,9 @@ export class LocationMappingService {
   private normalize(s: string) {
     return (s || '')
       .toLowerCase()
-      .replace(/\(warehouse\)/g, '')
-      .replace(/\s+/g, ' ')
-      .replace(/[^a-z0-9 ]/g, '')
+      .replaceAll(/(warehouse)/g, '')
+      .replaceAll(/\s+/g, ' ')
+      .replaceAll(/[^a-z0-9 ]/g, '')
       .trim();
   }
 }

@@ -1,6 +1,11 @@
 onlyBuiltDependencies:
   - '@nestjs/core'
   - '@swc/core'
+  - cpu-features
   - esbuild
+  - mongodb-memory-server
   - msgpackr-extract
+  - msw
+  - protobufjs
+  - ssh2
   - unrs-resolver

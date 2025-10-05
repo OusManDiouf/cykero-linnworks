@@ -163,6 +163,7 @@ export interface StockUpdateItem {
   itemSKU: string;
   itemStocksCount: number;
   locationName: string;
+  zohoLocationId?: string;
 }
 
 export interface LinnworksStockLevelUpdate {

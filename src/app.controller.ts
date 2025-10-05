@@ -9,4 +9,8 @@ export class AppController {
   getHello() {
     return { status: 'ok' };
   }
+  @Get('health')
+  health() {
+    return { status: 'ok' };
+  }
 }

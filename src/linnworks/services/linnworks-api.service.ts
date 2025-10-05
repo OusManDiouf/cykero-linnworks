@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  forwardRef,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom, map, retry } from 'rxjs';
@@ -8,6 +15,7 @@ import {
   LinnworksStockLevelUpdate,
   StockUpdateItem,
 } from '../../zoho-books/types/zoho-books-types';
+import { LocationMappingService } from './location-mapping.service';
 
 export interface DateFieldFilter {
   FieldCode?: string;
@@ -118,6 +126,8 @@ export class LinnworksApiService {
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
     private readonly tokenManager: TokenManagerService,
+    @Inject(forwardRef(() => LocationMappingService))
+    private readonly locationMapping: LocationMappingService,
   ) {
     this.apiUrl = this.configService.get<string>('linnworks.apiUrl') as string;
     this.maxRetries = this.configService.get<number>(
@@ -328,33 +338,27 @@ export class LinnworksApiService {
     }
 
     try {
-      // Resolve all locations at once, then map by name (case-insensitive)
-      const locations = await this.getStockLocations();
-      const nameToIdMap = new Map<string, string>(
-        locations
-          .filter((l) => l?.LocationName && l?.StockLocationId)
-          .map((l) => [l.LocationName.toLowerCase(), l.StockLocationId]),
-      );
+      // Convert to Linnworks format using durable mapping
+      const stockLevels: LinnworksStockLevelUpdate[] = [];
+      for (const item of stockUpdates) {
+        // Expect either item.locationId (Zoho) or item.locationName to derive it
+        const zohoLocationId = item.zohoLocationId;
 
-      // Convert to Linnworks format with the correct LocationId per item
-      const stockLevels: LinnworksStockLevelUpdate[] = stockUpdates.map(
-        (item) => {
-          const key = (item.locationName || '').toLowerCase();
-          const locationId = nameToIdMap.get(key);
+        let linnworksLocationId: string;
 
-          if (!locationId) {
-            throw new Error(
-              `Location "${item.locationName}" not found in Linnworks locations`,
-            );
-          }
+        // eslint-disable-next-line prefer-const
+        linnworksLocationId =
+          await this.locationMapping.resolveLinnworksLocationId({
+            zohoLocationId,
+            zohoLocationName: item.locationName,
+          });
 
-          return {
-            SKU: item.itemSKU,
-            LocationId: locationId,
-            Level: Math.max(0, item.itemStocksCount), // Clamp negative levels to 0
-          };
-        },
-      );
+        stockLevels.push({
+          SKU: item.itemSKU,
+          LocationId: linnworksLocationId,
+          Level: Math.max(0, item.itemStocksCount),
+        });
+      }
 
       await this.setStockLevels(stockLevels);
 
@@ -362,7 +366,6 @@ export class LinnworksApiService {
         `✅  Successfully updated stock levels for ${stockUpdates.length} items`,
       );
     } catch (error) {
-      // Treat “SKU not found” as soft: don't pollute logs, and don't throw
       if (error instanceof LinnworksSkuNotFoundError) {
         this.logger.debug(
           `SKU(s) not found while updating stock levels. Skipping. Reason: ${error.message}`,
@@ -376,7 +379,6 @@ export class LinnworksApiService {
       throw error;
     }
   }
-
   /**
    * Set stock levels using Linnworks API
    */

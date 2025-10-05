@@ -4,15 +4,21 @@ env:
   COMPOSE_PROJECT_NAME: cykero-linnworks
 
 tasks:
+  # Docker tasks
   docker-build:
     desc: Build docker images
     cmds:
       - docker compose -p ${COMPOSE_PROJECT_NAME} build
 
   docker-up:
-    desc: Run docker images
+    desc: Run docker images (app + dependencies)
     cmds:
       - docker compose -p ${COMPOSE_PROJECT_NAME} up -d
+
+  docker-up-deps:
+    desc: Run only dependencies (mongo, redis) for local development
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} up -d mongo mongo-test redis
 
   docker-down:
     desc: Stop docker images
@@ -22,9 +28,64 @@ tasks:
   docker-logs:
     desc: Show docker logs
     cmds:
-      - docker compose -p ${COMPOSE_PROJECT_NAME} logs -f
+      - docker compose -p ${COMPOSE_PROJECT_NAME} logs -f 2>/dev/null || true
+
+  docker-logs-app:
+    desc: Show app logs only
+    cmds:
+      - docker compose -p ${COMPOSE_PROJECT_NAME} logs -f app 2>/dev/null || true
 
   docker-clean:
-    desc: Clean docker images
+    desc: Clean docker images and volumes
     cmds:
       - docker compose -p ${COMPOSE_PROJECT_NAME} down -v --remove-orphans
+
+  docker-restart:
+    desc: Restart docker containers
+    cmds:
+      - task: docker-down
+      - task: docker-up
+
+  # Test tasks
+  test:
+    desc: Run unit tests
+    cmds:
+      - pnpm run test
+
+  test-watch:
+    desc: Run tests in watch mode
+    cmds:
+      - pnpm run test:watch
+
+  test-cov:
+    desc: Run tests with coverage
+    cmds:
+      - pnpm run test:cov
+
+  test-e2e:
+    desc: Run e2e tests
+    cmds:
+      - pnpm run test:e2e
+
+  # Development tasks
+  dev:
+    desc: Start development server locally (requires mongo and redis running)
+    cmds:
+      - PORT=4002 pnpm run start:dev
+
+  dev-full:
+    desc: Start all services in Docker including app
+    cmds:
+      - task: docker-up
+
+  # Setup tasks
+  install:
+    desc: Install dependencies
+    cmds:
+      - pnpm install
+
+  setup:
+    desc: Initial setup - install deps and start dependencies
+    cmds:
+      - task: install
+      - task: docker-up-deps

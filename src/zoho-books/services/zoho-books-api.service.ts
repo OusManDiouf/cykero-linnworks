@@ -202,8 +202,7 @@ export class ZohoBooksApiService {
           itemSKU: item.sku,
           itemStocksCount: location.location_actual_available_for_sale_stock,
           locationName: location.location_name,
-          // If needed later and the type allows, you can include the location ID:
-          // locationId: location.location_id,
+          zohoLocationId: location.location_id,
         }));
       });
   }
